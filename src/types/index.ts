@@ -34,6 +34,16 @@ export interface DoctorSearchOption {
   name: string
 }
 
+export type DoctorOption = DoctorSearchOption
+
+export interface SlotOption {
+  id: string
+  doctorId: string
+  date: string
+  startTime: string
+  endTime: string
+}
+
 declare module 'next-auth' {
   interface Session {
     user?: AdminSessionUser & DefaultSession['user']
