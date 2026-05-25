@@ -8,13 +8,27 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Hospital {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  address     String?
+  phone       String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  departments Department[]
+}
+
 model Department {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  icon      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  doctors   Doctor[]
+  id         String   @id @default(cuid())
+  hospitalId String
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+  name       String
+  icon       String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  doctors    Doctor[]
+
+  @@unique([hospitalId, name])
 }
 
 model Doctor {
