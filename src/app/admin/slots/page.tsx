@@ -1,9 +1,9 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { auth } from '@/lib/auth'
 import { getUtcDateRange, isWorkingDate } from '@/lib/booking-time'
 import { prisma } from '@/lib/prisma'
+import { requireRole } from '@/lib/require-role'
 import {
   DEFAULT_SLOT_TIMES,
   ensureRollingSlotsForActiveDoctors,
@@ -30,10 +30,10 @@ const dateFormatter = new Intl.DateTimeFormat('tr-TR', {
 })
 
 async function requireAdmin() {
-  const session = await auth()
+  const user = await requireRole(['ADMIN'])
 
-  if (!session?.user) {
-    redirect('/admin/login')
+  if (!user) {
+    redirect('/admin/appointments')
   }
 }
 
@@ -131,6 +131,8 @@ function getSlotStatus(slot: {
 export default async function AdminWorkingHoursPage({
   searchParams,
 }: AdminWorkingHoursPageProps) {
+  await requireAdmin()
+
   const query = await searchParams
   const selectedDate = getSelectedDate(getQueryValue(query.date))
   const hasError = typeof query.error === 'string'

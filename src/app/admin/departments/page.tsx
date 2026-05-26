@@ -5,8 +5,8 @@ import {
   createDepartment,
   setDepartmentActive,
 } from '@/lib/admin-management'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { requireRole } from '@/lib/require-role'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,10 +17,10 @@ interface AdminDepartmentsPageProps {
 }
 
 async function requireAdmin() {
-  const session = await auth()
+  const user = await requireRole(['ADMIN'])
 
-  if (!session?.user) {
-    redirect('/admin/login')
+  if (!user) {
+    redirect('/admin/appointments')
   }
 }
 
@@ -57,6 +57,8 @@ async function updateDepartmentStatusAction(formData: FormData) {
 export default async function AdminDepartmentsPage({
   searchParams,
 }: AdminDepartmentsPageProps) {
+  await requireAdmin()
+
   const query = await searchParams
   const hasError = typeof query.error === 'string'
   const [hospitals, departments] = await Promise.all([

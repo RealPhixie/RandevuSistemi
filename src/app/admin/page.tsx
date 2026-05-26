@@ -1,8 +1,10 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
 import { markExpiredScheduledAppointmentsNoShow } from '@/lib/appointment-auto-status'
 import { getLocalDateInputValue, getUtcDateRange } from '@/lib/booking-time'
 import { prisma } from '@/lib/prisma'
+import { requireRole } from '@/lib/require-role'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +24,9 @@ function getUpcomingRange(start: Date) {
 }
 
 export default async function AdminPage() {
+  const user = await requireRole(['ADMIN'])
+  if (!user) redirect('/admin/appointments')
+
   const today = getLocalDateInputValue()
   const todayRange = getUtcDateRange(today)
 

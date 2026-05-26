@@ -1,22 +1,28 @@
 import Link from 'next/link'
+import type { PanelUserRole } from '@prisma/client'
 
 import { signOut } from '@/lib/auth'
 
 interface SidebarProps {
-  adminName: string
+  name: string
+  role: PanelUserRole
   username: string
 }
 
-const NAV_LINKS = [
-  { href: '/admin', label: 'Panel' },
-  { href: '/admin/appointments', label: 'Randevular' },
-  { href: '/admin/hospitals', label: 'Hastaneler' },
-  { href: '/admin/departments', label: 'Tıbbi Birimler' },
-  { href: '/admin/doctors', label: 'Doktorlar' },
-  { href: '/admin/slots', label: 'Çalışma Saatleri' },
-]
+const NAV_LINKS: Record<PanelUserRole, { href: string; label: string }[]> = {
+  ADMIN: [
+    { href: '/admin', label: 'Dashboard' },
+    { href: '/admin/appointments', label: 'Randevular' },
+    { href: '/admin/hospitals', label: 'Hastaneler' },
+    { href: '/admin/departments', label: 'Birimler' },
+    { href: '/admin/doctors', label: 'Doktorlar' },
+    { href: '/admin/slots', label: 'Çalışma Saatleri' },
+  ],
+  SECRETARY: [{ href: '/admin/appointments', label: 'Randevular' }],
+  DOCTOR: [{ href: '/admin/appointments', label: 'Randevularım' }],
+}
 
-export function Sidebar({ adminName, username }: SidebarProps) {
+export function Sidebar({ name, role, username }: SidebarProps) {
   async function handleSignOut() {
     'use server'
 
@@ -35,7 +41,7 @@ export function Sidebar({ adminName, username }: SidebarProps) {
       </div>
 
       <nav className="mt-8 grid gap-2">
-        {NAV_LINKS.map((link) => (
+        {NAV_LINKS[role].map((link) => (
           <Link
             key={link.href}
             href={link.href}
@@ -47,7 +53,7 @@ export function Sidebar({ adminName, username }: SidebarProps) {
       </nav>
 
       <div className="mt-auto border-t border-[#d7e0ef] pt-5">
-        <p className="text-sm font-bold text-[#0d1b3d]">{adminName}</p>
+        <p className="text-sm font-bold text-[#0d1b3d]">{name}</p>
         <p className="mt-1 text-xs font-semibold text-[#70809a]">{username}</p>
         <form action={handleSignOut} className="mt-4">
           <button

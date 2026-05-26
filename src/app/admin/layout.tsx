@@ -12,11 +12,15 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     return children
   }
 
-  const adminName = session.user.name ?? session.user.username
+  const name = session.user.name ?? session.user.username
 
   return (
     <div className="min-h-screen bg-[#eaf1fb] lg:flex">
-      <Sidebar adminName={adminName} username={session.user.username} />
+      <Sidebar
+        name={name}
+        role={session.user.role}
+        username={session.user.username}
+      />
       <main className="min-w-0 flex-1 px-5 py-6 sm:px-8 lg:px-10">
         {children}
       </main>
