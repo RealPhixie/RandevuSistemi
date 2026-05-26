@@ -203,6 +203,7 @@ export async function POST(request: Request) {
     const slot = await prisma.timeSlot.findFirst({
       where: {
         id: timeSlotId,
+        isActive: true,
         doctor: {
           isActive: true,
           department: {
@@ -244,7 +245,7 @@ export async function POST(request: Request) {
 
     const appointment = await prisma.$transaction(async (tx) => {
       const updatedSlot = await tx.timeSlot.updateMany({
-        where: { id: timeSlotId, isBooked: false },
+        where: { id: timeSlotId, isBooked: false, isActive: true },
         data: { isBooked: true },
       })
 

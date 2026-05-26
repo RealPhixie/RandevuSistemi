@@ -63,6 +63,16 @@ export function getUtcDateRange(date: string) {
   return { start, end }
 }
 
+export function addDaysToDateInput(date: string, days: number) {
+  const range = getUtcDateRange(date)
+  if (!range) return null
+
+  const nextDate = new Date(range.start)
+  nextDate.setUTCDate(nextDate.getUTCDate() + days)
+
+  return nextDate.toISOString().slice(0, 10)
+}
+
 export function isWorkingDate(date: string) {
   const range = getUtcDateRange(date)
   if (!range) return false

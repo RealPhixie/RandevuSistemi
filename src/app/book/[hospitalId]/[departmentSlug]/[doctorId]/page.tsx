@@ -9,6 +9,11 @@ import {
 } from '@/lib/booking-time'
 import { prisma } from '@/lib/prisma'
 import { slugifyPathSegment } from '@/lib/slugs'
+import {
+  ensureRollingSlotsForDoctor,
+  getNextWorkingDate,
+  getRollingSlotWindow,
+} from '@/lib/working-hours'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,31 +27,44 @@ interface SlotSelectionPageProps {
 
 async function getInitialSlotDate(doctorId: string) {
   const localNow = getLocalDateTimeParts()
+  const window = getRollingSlotWindow()
   const todayRange = getUtcDateRange(localNow.date)
+  const windowStartRange = getUtcDateRange(window.startDate)
+  const windowEndRange = getUtcDateRange(window.endDate)
 
-  if (!todayRange) return localNow.date
+  if (!todayRange || !windowStartRange || !windowEndRange) {
+    return getNextWorkingDate()
+  }
 
-  const [firstBookableSlot] = await prisma.$queryRaw<{ date: Date }[]>`
-    SELECT "date"
-    FROM "TimeSlot"
-    WHERE "doctorId" = ${doctorId}
-      AND "isBooked" = false
-      AND EXTRACT(ISODOW FROM "date") BETWEEN 1 AND 5
-      AND (
-        "date" > ${todayRange.start}
-        OR (
-          "date" >= ${todayRange.start}
-          AND "date" < ${todayRange.end}
-          AND "startTime" > ${localNow.time}
-        )
-      )
-    ORDER BY "date" ASC, "startTime" ASC
-    LIMIT 1
-  `
+  await ensureRollingSlotsForDoctor(doctorId)
+
+  const firstBookableSlot = await prisma.timeSlot.findFirst({
+    where: {
+      doctorId,
+      isBooked: false,
+      isActive: true,
+      date: {
+        gte: windowStartRange.start,
+        lt: windowEndRange.end,
+      },
+      OR: [
+        { date: { gt: todayRange.start } },
+        {
+          date: {
+            gte: todayRange.start,
+            lt: todayRange.end,
+          },
+          startTime: { gt: localNow.time },
+        },
+      ],
+    },
+    orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+    select: { date: true },
+  })
 
   return firstBookableSlot
     ? getLocalDateInputValue(firstBookableSlot.date)
-    : localNow.date
+    : getNextWorkingDate()
 }
 
 export default async function SlotSelectionPage({

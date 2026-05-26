@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 
-import { getLocalDateInputValue } from '@/lib/booking-time'
+import { addDaysToDateInput, getLocalDateInputValue } from '@/lib/booking-time'
 import type { SlotOption } from '@/types'
 
 interface SlotPickerProps {
@@ -22,8 +22,9 @@ export function SlotPicker({
   initialDate,
 }: SlotPickerProps) {
   const today = useMemo(() => getLocalDateInputValue(), [])
+  const maxDate = useMemo(() => addDaysToDateInput(today, 14) ?? today, [today])
   const [selectedDate, setSelectedDate] = useState(() =>
-    initialDate >= today ? initialDate : today
+    initialDate < today ? today : initialDate > maxDate ? maxDate : initialDate
   )
   const [slots, setSlots] = useState<SlotOption[]>([])
   const [error, setError] = useState('')
@@ -39,6 +40,13 @@ export function SlotPicker({
       if (selectedDate < today) {
         setSlots([])
         setError('Geçmiş tarihler için randevu alınamaz.')
+        setIsLoading(false)
+        return
+      }
+
+      if (selectedDate > maxDate) {
+        setSlots([])
+        setError('Randevu tarihi en fazla 2 hafta sonrası olabilir.')
         setIsLoading(false)
         return
       }
@@ -77,7 +85,7 @@ export function SlotPicker({
     loadSlots()
 
     return () => controller.abort()
-  }, [doctorId, selectedDate, today])
+  }, [doctorId, maxDate, selectedDate, today])
 
   return (
     <section className="mt-8 rounded-3xl border border-[#cbd8ea] bg-white p-5 shadow-sm sm:p-7">
@@ -89,6 +97,7 @@ export function SlotPicker({
           <input
             type="date"
             min={today}
+            max={maxDate}
             value={selectedDate}
             onChange={(event) => setSelectedDate(event.target.value)}
             className="h-14 w-full rounded-2xl border border-[#cbd8ea] px-4 text-lg font-semibold text-[#102040] outline-none transition focus:border-red-500"

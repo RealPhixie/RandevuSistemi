@@ -4,8 +4,23 @@ import {
   isBookableSlot,
   isWorkingDate,
 } from '@/lib/booking-time'
+import { AdminMutationError } from '@/lib/admin-management'
+import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import type { SlotOption } from '@/types'
+import {
+  ensureRollingSlotsForDoctor,
+  isWithinRollingSlotWindow,
+  updateDoctorSlotAvailability,
+} from '@/lib/working-hours'
+
+interface SlotAvailabilityRequestBody {
+  doctorId?: unknown
+  date?: unknown
+  isActive?: unknown
+  allDay?: unknown
+  times?: unknown
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -44,15 +59,25 @@ export async function GET(request: Request) {
     )
   }
 
+  if (!isWithinRollingSlotWindow(date)) {
+    return Response.json(
+      { success: false, error: 'Randevu tarihi en fazla 2 hafta sonrası olabilir' },
+      { status: 400 }
+    )
+  }
+
   if (!isWorkingDate(date)) {
     return Response.json({ success: true, data: [] })
   }
 
   try {
+    await ensureRollingSlotsForDoctor(doctorId)
+
     const slots = await prisma.timeSlot.findMany({
       where: {
         doctorId,
         isBooked: false,
+        isActive: true,
         date: {
           gte: range.start,
           lt: range.end,
@@ -82,6 +107,52 @@ export async function GET(request: Request) {
   } catch {
     return Response.json(
       { success: false, error: 'Uygun saatler yüklenemedi' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: Request) {
+  const session = await auth()
+
+  if (!session?.user) {
+    return Response.json(
+      { success: false, error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  let body: SlotAvailabilityRequestBody
+
+  try {
+    body = (await request.json()) as SlotAvailabilityRequestBody
+  } catch {
+    return Response.json(
+      { success: false, error: 'Geçersiz istek gövdesi' },
+      { status: 400 }
+    )
+  }
+
+  try {
+    const result = await updateDoctorSlotAvailability({
+      doctorId: body.doctorId,
+      date: body.date,
+      isActive: body.isActive,
+      allDay: body.allDay,
+      times: body.times,
+    })
+
+    return Response.json({ success: true, data: result })
+  } catch (error) {
+    if (error instanceof AdminMutationError) {
+      return Response.json(
+        { success: false, error: error.message },
+        { status: error.status }
+      )
+    }
+
+    return Response.json(
+      { success: false, error: 'Çalışma saatleri güncellenemedi' },
       { status: 500 }
     )
   }

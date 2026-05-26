@@ -13,7 +13,7 @@ const NAV_LINKS = [
   { href: '/admin/hospitals', label: 'Hastaneler' },
   { href: '/admin/departments', label: 'Tıbbi Birimler' },
   { href: '/admin/doctors', label: 'Doktorlar' },
-  { href: '/admin/slots', label: 'Saatler' },
+  { href: '/admin/slots', label: 'Çalışma Saatleri' },
 ]
 
 export function Sidebar({ adminName, username }: SidebarProps) {

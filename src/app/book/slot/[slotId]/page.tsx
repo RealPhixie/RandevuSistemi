@@ -25,6 +25,7 @@ export default async function PhoneEntryPage({ params }: PhoneEntryPageProps) {
     where: {
       id: slotId,
       isBooked: false,
+      isActive: true,
       doctor: {
         isActive: true,
         department: {

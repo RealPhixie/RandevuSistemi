@@ -32,6 +32,7 @@ export default async function VerifyPage({ searchParams }: VerifyPageProps) {
     where: {
       id: slotId,
       isBooked: false,
+      isActive: true,
       doctor: {
         isActive: true,
         department: {

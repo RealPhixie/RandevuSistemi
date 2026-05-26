@@ -50,10 +50,12 @@ model TimeSlot {
   startTime   String
   endTime     String
   isBooked    Boolean      @default(false)
+  isActive    Boolean      @default(true)
   createdAt   DateTime     @default(now())
   appointment Appointment?
 
   @@unique([doctorId, date, startTime])
+  @@index([doctorId, date, isActive])
 }
 
 model Patient {
