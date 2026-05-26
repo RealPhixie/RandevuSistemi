@@ -6,39 +6,41 @@ import {
 } from '@/components/booking/BookingPageShell'
 import { DoctorCard } from '@/components/booking/DoctorCard'
 import { prisma } from '@/lib/prisma'
+import { findByPathSlug } from '@/lib/slugs'
 import type { DoctorOption } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
 interface DoctorSelectionPageProps {
-  params: Promise<{ hospitalId: string; departmentId: string }>
+  params: Promise<{ hospitalId: string; departmentSlug: string }>
 }
 
 export default async function DoctorSelectionPage({
   params,
 }: DoctorSelectionPageProps) {
-  const { hospitalId, departmentId } = await params
+  const { hospitalId, departmentSlug } = await params
 
-  const department = await prisma.department.findFirst({
+  const hospital = await prisma.hospital.findFirst({
     where: {
-      id: departmentId,
-      hospitalId,
+      id: hospitalId,
       isActive: true,
-      hospital: { isActive: true },
     },
     include: {
-      hospital: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      doctors: {
+      departments: {
         where: { isActive: true },
-        orderBy: [{ title: 'asc' }, { name: 'asc' }],
+        include: {
+          doctors: {
+            where: { isActive: true },
+            orderBy: [{ title: 'asc' }, { name: 'asc' }],
+          },
+        },
       },
     },
   })
+
+  if (!hospital) notFound()
+
+  const department = findByPathSlug(hospital.departments, departmentSlug)
 
   if (!department) notFound()
 
@@ -46,8 +48,8 @@ export default async function DoctorSelectionPage({
     id: doctor.id,
     departmentId: department.id,
     departmentName: department.name,
-    hospitalId: department.hospital.id,
-    hospitalName: department.hospital.name,
+    hospitalId: hospital.id,
+    hospitalName: hospital.name,
     title: doctor.title,
     name: doctor.name,
   }))
@@ -56,7 +58,7 @@ export default async function DoctorSelectionPage({
     <BookingPageShell
       backHref={`/book/${hospitalId}`}
       backLabel="Tıbbi birimlere dön"
-      eyebrow={department.hospital.name}
+      eyebrow={hospital.name}
       title={department.name}
       description="Randevu almak istediğiniz doktoru seçerek uygun saatlere geçin."
     >

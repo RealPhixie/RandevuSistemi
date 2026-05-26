@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { slugifyPathSegment } from '@/lib/slugs'
 import type { DepartmentOption } from '@/types'
 
 interface DepartmentCardProps {
@@ -7,9 +8,13 @@ interface DepartmentCardProps {
 }
 
 export function DepartmentCard({ department }: DepartmentCardProps) {
+  const departmentHref = `/book/${department.hospitalId}/${slugifyPathSegment(
+    department.name
+  )}`
+
   return (
     <Link
-      href={`/book/${department.hospitalId}/${department.id}`}
+      href={departmentHref}
       className="flex min-h-28 rounded-xl border border-[#c9d6ea] bg-white px-5 py-4 text-left transition hover:border-red-400 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
     >
       <span className="mr-4 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#edf4ff] text-2xl">

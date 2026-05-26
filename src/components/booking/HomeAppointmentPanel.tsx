@@ -6,6 +6,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 
 import { DepartmentCard } from '@/components/booking/DepartmentCard'
 import { HospitalCard } from '@/components/booking/HospitalCard'
+import { slugifyPathSegment } from '@/lib/slugs'
 import type {
   DepartmentOption,
   DoctorSearchOption,
@@ -68,7 +69,9 @@ export function HomeAppointmentPanel({
         type: 'department',
         label: department.name,
         detail: `${department.hospitalName} · Tıbbi birim`,
-        href: `/book/${department.hospitalId}/${department.id}`,
+        href: `/book/${department.hospitalId}/${slugifyPathSegment(
+          department.name
+        )}`,
       }))
 
     const doctorResults: SearchResult[] = doctors
@@ -82,7 +85,9 @@ export function HomeAppointmentPanel({
         type: 'doctor',
         label: `${doctor.title} ${doctor.name}`,
         detail: `${doctor.departmentName} · ${doctor.hospitalName}`,
-        href: `/book/${doctor.hospitalId}/${doctor.departmentId}/${doctor.id}`,
+        href: `/book/${doctor.hospitalId}/${slugifyPathSegment(
+          doctor.departmentName
+        )}/${doctor.id}`,
       }))
 
     return [...departmentResults, ...doctorResults].slice(0, 8)
@@ -344,7 +349,7 @@ function MyAppointmentsTab() {
         >
           <label className="block">
             <span className="mb-2 block text-base font-semibold text-[#0d1b3d]">
-              Telefon Numarası
+              Telefon Numaranız
             </span>
             <input
               type="tel"
@@ -370,7 +375,7 @@ function MyAppointmentsTab() {
           >
             <label className="block">
               <span className="mb-2 block text-base font-semibold text-[#0d1b3d]">
-                OTP Kodu
+                Doğrulama Kodu
               </span>
               <input
                 inputMode="numeric"

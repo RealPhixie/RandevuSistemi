@@ -1,25 +1,11 @@
+import {
+  getUtcDateRange,
+  getLocalDateTimeParts,
+  isBookableSlot,
+  isWorkingDate,
+} from '@/lib/booking-time'
 import { prisma } from '@/lib/prisma'
 import type { SlotOption } from '@/types'
-
-function getUtcDateRange(date: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
-
-  const [year, month, day] = date.split('-').map(Number)
-  const start = new Date(Date.UTC(year, month - 1, day))
-
-  if (
-    start.getUTCFullYear() !== year ||
-    start.getUTCMonth() !== month - 1 ||
-    start.getUTCDate() !== day
-  ) {
-    return null
-  }
-
-  const end = new Date(start)
-  end.setUTCDate(end.getUTCDate() + 1)
-
-  return { start, end }
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -49,6 +35,19 @@ export async function GET(request: Request) {
     )
   }
 
+  const localNow = getLocalDateTimeParts()
+
+  if (date < localNow.date) {
+    return Response.json(
+      { success: false, error: 'Geçmiş tarihler için randevu alınamaz' },
+      { status: 400 }
+    )
+  }
+
+  if (!isWorkingDate(date)) {
+    return Response.json({ success: true, data: [] })
+  }
+
   try {
     const slots = await prisma.timeSlot.findMany({
       where: {
@@ -69,13 +68,15 @@ export async function GET(request: Request) {
       orderBy: { startTime: 'asc' },
     })
 
-    const data: SlotOption[] = slots.map((slot) => ({
-      id: slot.id,
-      doctorId: slot.doctorId,
-      date: slot.date.toISOString(),
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-    }))
+    const data: SlotOption[] = slots
+      .filter((slot) => isBookableSlot(date, slot.startTime, localNow))
+      .map((slot) => ({
+        id: slot.id,
+        doctorId: slot.doctorId,
+        date: slot.date.toISOString(),
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      }))
 
     return Response.json({ success: true, data })
   } catch {

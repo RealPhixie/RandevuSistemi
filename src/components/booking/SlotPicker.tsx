@@ -3,12 +3,12 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 
+import { getLocalDateInputValue } from '@/lib/booking-time'
 import type { SlotOption } from '@/types'
 
 interface SlotPickerProps {
-  hospitalId: string
-  departmentId: string
   doctorId: string
+  initialDate: string
 }
 
 interface SlotsApiResponse {
@@ -17,21 +17,14 @@ interface SlotsApiResponse {
   error?: string
 }
 
-function formatDateInputValue(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
-
 export function SlotPicker({
-  hospitalId,
-  departmentId,
   doctorId,
+  initialDate,
 }: SlotPickerProps) {
-  const today = useMemo(() => formatDateInputValue(new Date()), [])
-  const [selectedDate, setSelectedDate] = useState(today)
+  const today = useMemo(() => getLocalDateInputValue(), [])
+  const [selectedDate, setSelectedDate] = useState(() =>
+    initialDate >= today ? initialDate : today
+  )
   const [slots, setSlots] = useState<SlotOption[]>([])
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -42,6 +35,13 @@ export function SlotPicker({
     async function loadSlots() {
       setIsLoading(true)
       setError('')
+
+      if (selectedDate < today) {
+        setSlots([])
+        setError('Geçmiş tarihler için randevu alınamaz.')
+        setIsLoading(false)
+        return
+      }
 
       try {
         const params = new URLSearchParams({
@@ -77,7 +77,7 @@ export function SlotPicker({
     loadSlots()
 
     return () => controller.abort()
-  }, [doctorId, selectedDate])
+  }, [doctorId, selectedDate, today])
 
   return (
     <section className="mt-8 rounded-3xl border border-[#cbd8ea] bg-white p-5 shadow-sm sm:p-7">
@@ -119,7 +119,7 @@ export function SlotPicker({
 
         {!error && !isLoading && slots.length === 0 ? (
           <div className="rounded-2xl bg-[#f5f8fe] px-5 py-6 text-sm font-medium text-[#52617a]">
-            Seçilen tarihte uygun saat bulunamadı.
+            Seçilen tarihte uygun randevu saati bulunamadı.
           </div>
         ) : null}
 
@@ -128,7 +128,7 @@ export function SlotPicker({
             {slots.map((slot) => (
               <Link
                 key={slot.id}
-                href={`/book/${hospitalId}/${departmentId}/${doctorId}/${slot.id}`}
+                href={`/book/slot/${slot.id}`}
                 className="flex h-14 items-center justify-center rounded-2xl border border-[#c9d6ea] bg-white text-base font-bold text-[#0d1b3d] transition hover:border-red-500 hover:text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
               >
                 {slot.startTime}
