@@ -1,36 +1,149 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hastane Randevu Sistemi
 
-## Getting Started
+Next.js 16, Prisma ve Neon PostgreSQL ile hazırlanmış üniversite projesi.
+Hasta tarafında hastane, tıbbi birim, doktor ve saat seçilerek randevu alınır.
+Admin tarafında hastane, birim, doktor, çalışma saatleri ve randevular yönetilir.
 
-First, run the development server:
+## Teknolojiler
+
+- Next.js `16.2.6`
+- React `19.2.4`
+- Prisma `6.19.3`
+- PostgreSQL / Neon
+- NextAuth `5.0.0-beta.31`
+- Tailwind CSS 4
+- bcryptjs
+
+Ek UI veya form kütüphanesi kullanılmaz.
+
+## Kurulum
 
 ```bash
+npm install
+npx prisma generate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Uygulama varsayılan olarak:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```txt
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+adresinde çalışır.
 
-## Learn More
+## Ortam Değişkenleri
 
-To learn more about Next.js, take a look at the following resources:
+`.env.local` dosyası oluşturup `.env.example` içindeki anahtarları doldurun.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
+DIRECT_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
+NEXTAUTH_SECRET="your-secret-here"
+NEXTAUTH_URL="http://localhost:3000"
+NODE_ENV="development"
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Neon için `DATABASE_URL` pooled, `DIRECT_URL` direct bağlantı adresi olmalıdır.
 
-## Deploy on Vercel
+## Veritabanı
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Migration uygulamak için:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx prisma migrate deploy
+```
+
+Şema doğrulama:
+
+```bash
+npx prisma validate
+```
+
+Demo veriler Neon üzerinde tutulur. Repo içinde geçici seed dosyası bırakılmadı.
+
+Mevcut test verileri:
+
+- Birden fazla hastane
+- Hastanelere bağlı tıbbi birimler
+- Birimlere bağlı doktorlar
+- Aktif doktorlar için otomatik 14 günlük hafta içi randevu saatleri
+- Admin kullanıcı
+
+Admin giriş bilgisi:
+
+```txt
+Kullanıcı adı: admin
+Şifre: Admin123!
+```
+
+## Hasta Akışı
+
+1. Ana ekranda doktor/birim aranır veya hastane seçilir.
+2. Hastane, tıbbi birim ve doktor seçilir.
+3. Sistem uygun ilk günü ve saatleri gösterir.
+4. Telefon numarası girilir.
+5. Geliştirme ortamında doğrulama kodu ekranda gösterilir.
+6. Yeni hasta ise hasta bilgileri alınır.
+7. Randevu detayları onaylanır.
+8. Randevu oluşturulur.
+
+`Randevularım` sekmesinde randevular yalnızca telefon doğrulamasından sonra gösterilir.
+
+## Admin Akışı
+
+Admin paneli:
+
+```txt
+/admin
+```
+
+Yönetilen alanlar:
+
+- Randevular
+- Hastaneler
+- Tıbbi birimler
+- Doktorlar
+- Çalışma saatleri
+
+Randevular ekranında işlem olarak yalnızca:
+
+- `Geldi`
+- `İptal Et`
+
+bulunur. Randevu saatinden 15 dakika sonra hâlâ `Geldi` yapılmamış randevular otomatik `Gelmedi` durumuna alınır.
+
+## Çalışma Saatleri
+
+Sistem aktif doktorlar için bugünden itibaren 14 takvim günü boyunca hafta içi randevu saatlerini otomatik oluşturur.
+
+Standart saatler:
+
+```txt
+09:00 - 16:30
+```
+
+30 dakikalık aralıklarla oluşturulur. Cumartesi ve pazar günleri normal randevu günü değildir.
+
+Admin `Çalışma Saatleri` ekranından doktor izni için:
+
+- Tüm günü randevuya kapatabilir.
+- Seçili saatleri randevuya kapatabilir.
+- Kapalı saatleri tekrar aktif edebilir.
+
+Dolu randevu saatleri izin işlemiyle değiştirilmez.
+
+## Kontrol Komutları
+
+```bash
+npm run lint
+npm run build
+npx prisma validate
+```
+
+Prisma şeması değiştiyse:
+
+```bash
+npx prisma generate
+npx prisma migrate deploy
+```
