@@ -1,5 +1,6 @@
 import type { DefaultSession } from 'next-auth'
 import type {} from 'next-auth/jwt'
+import type { AppointmentStatusValue } from '@/lib/appointment-status'
 
 export interface AdminSessionUser {
   id: string
@@ -54,6 +55,19 @@ export interface PatientAppointmentOption {
   departmentName: string
   doctorTitle: string
   doctorName: string
+}
+
+export interface AdminAppointmentOption {
+  id: string
+  status: AppointmentStatusValue
+  patientName: string
+  patientPhone: string
+  hospitalName: string
+  departmentName: string
+  doctorName: string
+  date: string
+  startTime: string
+  endTime: string
 }
 
 declare module 'next-auth' {
