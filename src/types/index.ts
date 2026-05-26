@@ -44,6 +44,18 @@ export interface SlotOption {
   endTime: string
 }
 
+export interface PatientAppointmentOption {
+  id: string
+  status: string
+  date: string
+  startTime: string
+  endTime: string
+  hospitalName: string
+  departmentName: string
+  doctorTitle: string
+  doctorName: string
+}
+
 declare module 'next-auth' {
   interface Session {
     user?: AdminSessionUser & DefaultSession['user']

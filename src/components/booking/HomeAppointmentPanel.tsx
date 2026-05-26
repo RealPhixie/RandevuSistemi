@@ -11,6 +11,7 @@ import type {
   DepartmentOption,
   DoctorSearchOption,
   HospitalOption,
+  PatientAppointmentOption,
 } from '@/types'
 
 interface HomeAppointmentPanelProps {
@@ -28,6 +29,29 @@ interface SearchResult {
   label: string
   detail: string
   href: string
+}
+
+interface OtpSendResponse {
+  success: boolean
+  devCode?: string
+  error?: string
+}
+
+interface OtpVerifyResponse {
+  success: boolean
+  data?: {
+    phoneVerificationId: string
+  }
+  error?: string
+}
+
+interface PatientAppointmentsResponse {
+  success: boolean
+  data?: {
+    current: PatientAppointmentOption[]
+    past: PatientAppointmentOption[]
+  }
+  error?: string
 }
 
 function normalizeSearch(value: string) {
@@ -310,41 +334,121 @@ function AppointmentTab({
 
 function MyAppointmentsTab() {
   const [phone, setPhone] = useState('')
-  const [otpCode, setOtpCode] = useState('')
-  const [isOtpRequested, setIsOtpRequested] = useState(false)
+  const [verificationCode, setVerificationCode] = useState('')
+  const [devCode, setDevCode] = useState('')
+  const [error, setError] = useState('')
+  const [appointments, setAppointments] =
+    useState<PatientAppointmentsResponse['data']>()
+  const [isSendingCode, setIsSendingCode] = useState(false)
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false)
+  const [isCodeSent, setIsCodeSent] = useState(false)
   const [isVerified, setIsVerified] = useState(false)
 
-  const digitsOnlyPhone = phone.replace(/\D/g, '')
-  const canRequestOtp = digitsOnlyPhone.length >= 10
-  const canVerifyOtp = otpCode.trim().length >= 4
+  const normalizedPhone = phone.replace(/\s/g, '')
+  const canRequestCode = /^05\d{9}$/.test(normalizedPhone) && !isSendingCode
+  const canVerifyCode = /^\d{6}$/.test(verificationCode) && !isVerifyingCode
 
   function handlePhoneChange(value: string) {
     setPhone(value)
-    setOtpCode('')
-    setIsOtpRequested(false)
+    setVerificationCode('')
+    setDevCode('')
+    setError('')
+    setAppointments(undefined)
+    setIsCodeSent(false)
     setIsVerified(false)
   }
 
-  function handleRequestOtp(event: FormEvent<HTMLFormElement>) {
+  async function handleRequestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!canRequestOtp) return
+    if (!canRequestCode) return
 
-    setIsOtpRequested(true)
-    setIsVerified(false)
+    setIsSendingCode(true)
+    setError('')
+    setDevCode('')
+    setAppointments(undefined)
+
+    try {
+      const response = await fetch('/api/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: normalizedPhone }),
+      })
+      const payload = (await response.json()) as OtpSendResponse
+
+      if (!response.ok || !payload.success) {
+        setError(payload.error ?? 'Doğrulama kodu gönderilemedi.')
+        setIsCodeSent(false)
+        return
+      }
+
+      setDevCode(payload.devCode ?? '')
+      setIsCodeSent(true)
+      setIsVerified(false)
+    } catch {
+      setError('Doğrulama kodu gönderilemedi.')
+      setIsCodeSent(false)
+    } finally {
+      setIsSendingCode(false)
+    }
   }
 
-  function handleVerifyOtp(event: FormEvent<HTMLFormElement>) {
+  async function handleVerifyCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!canVerifyOtp) return
+    if (!canVerifyCode) return
 
-    setIsVerified(true)
+    setIsVerifyingCode(true)
+    setError('')
+
+    try {
+      const verifyResponse = await fetch('/api/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: normalizedPhone,
+          code: verificationCode,
+        }),
+      })
+      const verifyPayload =
+        (await verifyResponse.json()) as OtpVerifyResponse
+
+      if (!verifyResponse.ok || !verifyPayload.success || !verifyPayload.data) {
+        setError(verifyPayload.error ?? 'Telefon doğrulanamadı.')
+        return
+      }
+
+      const params = new URLSearchParams({
+        phone: normalizedPhone,
+        phoneVerificationId: verifyPayload.data.phoneVerificationId,
+      })
+      const appointmentsResponse = await fetch(
+        `/api/appointments?${params.toString()}`
+      )
+      const appointmentsPayload =
+        (await appointmentsResponse.json()) as PatientAppointmentsResponse
+
+      if (
+        !appointmentsResponse.ok ||
+        !appointmentsPayload.success ||
+        !appointmentsPayload.data
+      ) {
+        setError(appointmentsPayload.error ?? 'Randevular yüklenemedi.')
+        return
+      }
+
+      setAppointments(appointmentsPayload.data)
+      setIsVerified(true)
+    } catch {
+      setError('Telefon doğrulanamadı.')
+    } finally {
+      setIsVerifyingCode(false)
+    }
   }
 
   return (
     <div className="mx-auto mt-10 w-full max-w-5xl">
       <div className="rounded-3xl border-2 border-[#cbd8ea] bg-white p-5 shadow-sm sm:p-7">
         <form
-          onSubmit={handleRequestOtp}
+          onSubmit={handleRequestCode}
           className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end"
         >
           <label className="block">
@@ -353,6 +457,7 @@ function MyAppointmentsTab() {
             </span>
             <input
               type="tel"
+              inputMode="tel"
               value={phone}
               onChange={(event) => handlePhoneChange(event.target.value)}
               placeholder="05XXXXXXXXX"
@@ -361,16 +466,28 @@ function MyAppointmentsTab() {
           </label>
           <button
             type="submit"
-            disabled={!canRequestOtp}
+            disabled={!canRequestCode}
             className="h-14 rounded-2xl bg-red-600 px-8 text-base font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-[#c3ccdc]"
           >
-            Sorgula
+            {isSendingCode ? 'Gönderiliyor' : 'Sorgula'}
           </button>
         </form>
 
-        {isOtpRequested && !isVerified ? (
+        {devCode ? (
+          <div className="mt-5 rounded-2xl border border-yellow-400 bg-yellow-100 px-5 py-4 text-sm font-semibold text-yellow-900">
+            Test - Gönderilen kod: <strong>{devCode}</strong>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="mt-5 rounded-2xl bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        {isCodeSent && !isVerified ? (
           <form
-            onSubmit={handleVerifyOtp}
+            onSubmit={handleVerifyCode}
             className="mt-5 grid gap-4 border-t border-[#d7e0ef] pt-5 md:grid-cols-[1fr_auto] md:items-end"
           >
             <label className="block">
@@ -379,42 +496,85 @@ function MyAppointmentsTab() {
               </span>
               <input
                 inputMode="numeric"
-                value={otpCode}
-                onChange={(event) => setOtpCode(event.target.value)}
+                value={verificationCode}
+                onChange={(event) =>
+                  setVerificationCode(
+                    event.target.value.replace(/\D/g, '').slice(0, 6)
+                  )
+                }
                 placeholder="6 haneli kod"
                 className="h-14 w-full rounded-2xl border border-[#cbd8ea] px-4 text-lg font-semibold text-[#102040] outline-none transition placeholder:text-[#8a98ad] focus:border-red-500"
               />
             </label>
             <button
               type="submit"
-              disabled={!canVerifyOtp}
+              disabled={!canVerifyCode}
               className="h-14 rounded-2xl bg-[#111827] px-8 text-base font-semibold text-white transition hover:bg-[#253044] disabled:cursor-not-allowed disabled:bg-[#c3ccdc]"
             >
-              Onayla
+              {isVerifyingCode ? 'Doğrulanıyor' : 'Onayla'}
             </button>
           </form>
         ) : null}
       </div>
 
-      {isVerified ? (
+      {isVerified && appointments ? (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <AppointmentSummary title="Güncel Randevular" />
-          <AppointmentSummary title="Geçmiş Randevular" />
+          <AppointmentSummary
+            title="Güncel Randevular"
+            appointments={appointments.current}
+          />
+          <AppointmentSummary
+            title="Geçmiş Randevular"
+            appointments={appointments.past}
+          />
         </div>
       ) : null}
     </div>
   )
 }
 
-function AppointmentSummary({ title }: { title: string }) {
+function AppointmentSummary({
+  title,
+  appointments,
+}: {
+  title: string
+  appointments: PatientAppointmentOption[]
+}) {
   return (
     <section className="rounded-3xl border border-[#cbd8ea] bg-white p-6">
       <h2 className="text-xl font-semibold text-[#0d1b3d]">{title}</h2>
-      <div className="mt-5 rounded-2xl bg-[#f5f8fe] px-5 py-6 text-sm font-medium text-[#52617a]">
-        Randevu bulunamadı.
-      </div>
+      {appointments.length > 0 ? (
+        <div className="mt-5 grid gap-3">
+          {appointments.map((appointment) => (
+            <div
+              key={appointment.id}
+              className="rounded-2xl bg-[#f5f8fe] px-5 py-4 text-sm text-[#30476f]"
+            >
+              <p className="font-bold text-[#0d1b3d]">
+                {formatAppointmentDate(appointment.date)}, {appointment.startTime}
+              </p>
+              <p className="mt-1 font-medium">
+                {appointment.doctorTitle} {appointment.doctorName}
+              </p>
+              <p className="mt-1 text-[#52617a]">
+                {appointment.hospitalName} · {appointment.departmentName}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-5 rounded-2xl bg-[#f5f8fe] px-5 py-6 text-sm font-medium text-[#52617a]">
+          Randevu bulunamadı.
+        </div>
+      )}
     </section>
   )
+}
+
+function formatAppointmentDate(value: string) {
+  return new Intl.DateTimeFormat('tr-TR', {
+    dateStyle: 'medium',
+  }).format(new Date(value))
 }
 
 function StepProgress() {

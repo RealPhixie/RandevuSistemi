@@ -1,3 +1,7 @@
+import {
+  isValidTurkishMobilePhone,
+  normalizePhone,
+} from '@/lib/patient-validation'
 import { prisma } from '@/lib/prisma'
 
 interface OtpVerifyRequestBody {
@@ -17,10 +21,10 @@ export async function POST(request: Request) {
     )
   }
 
-  const phone = typeof body.phone === 'string' ? body.phone.trim() : ''
+  const phone = normalizePhone(body.phone)
   const code = typeof body.code === 'string' ? body.code.trim() : ''
 
-  if (!/^05\d{9}$/.test(phone)) {
+  if (!isValidTurkishMobilePhone(phone)) {
     return Response.json(
       { success: false, error: 'Telefon numarası geçersiz' },
       { status: 400 }
@@ -55,7 +59,7 @@ export async function POST(request: Request) {
     const [patient] = await prisma.$transaction([
       prisma.patient.findUnique({
         where: { phone },
-        select: { id: true },
+        select: { id: true, firstName: true, lastName: true },
       }),
       prisma.otpCode.update({
         where: { id: otp.id },
@@ -67,7 +71,13 @@ export async function POST(request: Request) {
       success: true,
       data: {
         isExistingPatient: Boolean(patient),
-        ...(patient ? { patientId: patient.id } : {}),
+        phoneVerificationId: otp.id,
+        ...(patient
+          ? {
+              patientId: patient.id,
+              patientName: `${patient.firstName} ${patient.lastName}`,
+            }
+          : {}),
       },
     })
   } catch {

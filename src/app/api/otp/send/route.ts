@@ -1,3 +1,7 @@
+import {
+  isValidTurkishMobilePhone,
+  normalizePhone,
+} from '@/lib/patient-validation'
 import { prisma } from '@/lib/prisma'
 
 interface OtpSendRequestBody {
@@ -20,9 +24,9 @@ export async function POST(request: Request) {
     )
   }
 
-  const phone = typeof body.phone === 'string' ? body.phone.trim() : ''
+  const phone = normalizePhone(body.phone)
 
-  if (!/^05\d{9}$/.test(phone)) {
+  if (!isValidTurkishMobilePhone(phone)) {
     return Response.json(
       { success: false, error: 'Telefon numarası geçersiz' },
       { status: 400 }

@@ -85,7 +85,18 @@ export default async function VerifyPage({ searchParams }: VerifyPageProps) {
       title="Telefon Doğrulama"
       description={`${slot.doctor.title} ${slot.doctor.name} - ${formattedDate}, ${slot.startTime} randevusu için ${phone} numarasına gönderilen kodu girin.`}
     >
-      <VerifyOtpForm phone={phone} slotId={slotId} />
+      <VerifyOtpForm
+        phone={phone}
+        slotId={slotId}
+        appointmentDetails={{
+          hospitalName: slot.doctor.department.hospital.name,
+          departmentName: slot.doctor.department.name,
+          doctorName: `${slot.doctor.title} ${slot.doctor.name}`,
+          date: formattedDate,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        }}
+      />
     </BookingPageShell>
   )
 }
