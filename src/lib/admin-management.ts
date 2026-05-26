@@ -205,6 +205,7 @@ export async function createDoctor(input: Record<string, unknown>) {
         id: true,
         departmentId: true,
         username: true,
+        role: true,
         title: true,
         name: true,
         isActive: true,

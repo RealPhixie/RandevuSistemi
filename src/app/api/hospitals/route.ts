@@ -2,8 +2,8 @@ import {
   AdminMutationError,
   createHospital,
 } from '@/lib/admin-management'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { requireRole } from '@/lib/require-role'
 
 interface HospitalCreateRequestBody {
   name?: unknown
@@ -33,9 +33,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
+  const user = await requireRole(['ADMIN'])
 
-  if (!session?.user) {
+  if (!user) {
     return Response.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 }
