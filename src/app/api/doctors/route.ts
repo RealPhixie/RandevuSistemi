@@ -1,5 +1,16 @@
+import {
+  AdminMutationError,
+  createDoctor,
+} from '@/lib/admin-management'
+import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import type { DoctorOption } from '@/types'
+
+interface DoctorCreateRequestBody {
+  departmentId?: unknown
+  title?: unknown
+  name?: unknown
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -66,6 +77,45 @@ export async function GET(request: Request) {
   } catch {
     return Response.json(
       { success: false, error: 'Doktorlar yüklenemedi' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: Request) {
+  const session = await auth()
+
+  if (!session?.user) {
+    return Response.json(
+      { success: false, error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  let body: DoctorCreateRequestBody
+
+  try {
+    body = (await request.json()) as DoctorCreateRequestBody
+  } catch {
+    return Response.json(
+      { success: false, error: 'Geçersiz istek gövdesi' },
+      { status: 400 }
+    )
+  }
+
+  try {
+    const doctor = await createDoctor({ ...body })
+    return Response.json({ success: true, data: doctor }, { status: 201 })
+  } catch (error) {
+    if (error instanceof AdminMutationError) {
+      return Response.json(
+        { success: false, error: error.message },
+        { status: error.status }
+      )
+    }
+
+    return Response.json(
+      { success: false, error: 'Doktor oluşturulamadı' },
       { status: 500 }
     )
   }
