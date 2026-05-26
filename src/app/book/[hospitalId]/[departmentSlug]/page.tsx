@@ -29,8 +29,8 @@ export default async function DoctorSelectionPage({
       departments: {
         where: { isActive: true },
         include: {
-          doctors: {
-            where: { isActive: true },
+          panelUsers: {
+            where: { role: 'DOCTOR', isActive: true },
             orderBy: [{ title: 'asc' }, { name: 'asc' }],
           },
         },
@@ -44,13 +44,13 @@ export default async function DoctorSelectionPage({
 
   if (!department) notFound()
 
-  const doctors: DoctorOption[] = department.doctors.map((doctor) => ({
+  const doctors: DoctorOption[] = department.panelUsers.map((doctor) => ({
     id: doctor.id,
     departmentId: department.id,
     departmentName: department.name,
     hospitalId: hospital.id,
     hospitalName: hospital.name,
-    title: doctor.title,
+    title: doctor.title ?? '',
     name: doctor.name,
   }))
 

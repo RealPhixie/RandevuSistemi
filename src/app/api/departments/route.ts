@@ -38,12 +38,17 @@ export async function GET(request: Request) {
           },
         },
         _count: {
-          select: { doctors: true },
+          select: { panelUsers: { where: { role: 'DOCTOR' } } },
         },
       },
     })
 
-    return Response.json({ success: true, data: departments })
+    const data = departments.map((department) => ({
+      ...department,
+      _count: { doctors: department._count.panelUsers },
+    }))
+
+    return Response.json({ success: true, data })
   } catch {
     return Response.json(
       { success: false, error: 'Tıbbi birimler yüklenemedi' },

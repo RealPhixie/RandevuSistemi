@@ -72,9 +72,10 @@ export default async function SlotSelectionPage({
 }: SlotSelectionPageProps) {
   const { hospitalId, departmentSlug, doctorId } = await params
 
-  const doctor = await prisma.doctor.findFirst({
+  const doctor = await prisma.panelUser.findFirst({
     where: {
       id: doctorId,
+      role: 'DOCTOR',
       isActive: true,
       department: {
         hospitalId,
@@ -98,7 +99,7 @@ export default async function SlotSelectionPage({
     },
   })
 
-  if (!doctor) notFound()
+  if (!doctor || !doctor.department) notFound()
 
   if (slugifyPathSegment(doctor.department.name) !== departmentSlug) {
     notFound()
@@ -111,7 +112,7 @@ export default async function SlotSelectionPage({
       backHref={`/book/${hospitalId}/${departmentSlug}`}
       backLabel="Doktorlara dön"
       eyebrow={`${doctor.department.hospital.name} · ${doctor.department.name}`}
-      title={`${doctor.title} ${doctor.name}`}
+      title={`${doctor.title ?? ''} ${doctor.name}`}
       description="Uygun randevu tarihini seçip devam etmek istediğiniz saati işaretleyin."
     >
       <SlotPicker doctorId={doctorId} initialDate={initialDate} />

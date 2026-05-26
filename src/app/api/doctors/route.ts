@@ -2,14 +2,16 @@ import {
   AdminMutationError,
   createDoctor,
 } from '@/lib/admin-management'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { requireRole } from '@/lib/require-role'
 import type { DoctorOption } from '@/types'
 
 interface DoctorCreateRequestBody {
   departmentId?: unknown
   title?: unknown
   name?: unknown
+  username?: unknown
+  password?: unknown
 }
 
 export async function GET(request: Request) {
@@ -32,8 +34,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    const doctors = await prisma.doctor.findMany({
+    const doctors = await prisma.panelUser.findMany({
       where: {
+        role: 'DOCTOR',
         isActive: true,
         ...(departmentId ? { departmentId } : {}),
         department: {
@@ -63,15 +66,19 @@ export async function GET(request: Request) {
       },
     })
 
-    const data: DoctorOption[] = doctors.map((doctor) => ({
-      id: doctor.id,
-      departmentId: doctor.department.id,
-      departmentName: doctor.department.name,
-      hospitalId: doctor.department.hospital.id,
-      hospitalName: doctor.department.hospital.name,
-      title: doctor.title,
-      name: doctor.name,
-    }))
+    const data: DoctorOption[] = doctors.flatMap((doctor) => {
+      if (!doctor.department) return []
+
+      return {
+        id: doctor.id,
+        departmentId: doctor.department.id,
+        departmentName: doctor.department.name,
+        hospitalId: doctor.department.hospital.id,
+        hospitalName: doctor.department.hospital.name,
+        title: doctor.title ?? '',
+        name: doctor.name,
+      }
+    })
 
     return Response.json({ success: true, data })
   } catch {
@@ -83,9 +90,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
+  const user = await requireRole(['ADMIN'])
 
-  if (!session?.user) {
+  if (!user) {
     return Response.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 }

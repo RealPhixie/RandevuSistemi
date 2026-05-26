@@ -57,7 +57,7 @@ export default async function PhoneEntryPage({ params }: PhoneEntryPageProps) {
     },
   })
 
-  if (!slot) notFound()
+  if (!slot || !slot.doctor.department) notFound()
 
   const localNow = getLocalDateTimeParts()
   const slotDate = getLocalDateInputValue(slot.date)
@@ -69,17 +69,18 @@ export default async function PhoneEntryPage({ params }: PhoneEntryPageProps) {
   const formattedDate = new Intl.DateTimeFormat('tr-TR', {
     dateStyle: 'long',
   }).format(slot.date)
-  const hospitalId = slot.doctor.department.hospital.id
-  const departmentId = slot.doctor.department.id
-  const departmentSlug = slugifyPathSegment(slot.doctor.department.name)
+  const department = slot.doctor.department
+  const hospitalId = department.hospital.id
+  const departmentId = department.id
+  const departmentSlug = slugifyPathSegment(department.name)
   const doctorId = slot.doctor.id
 
   return (
     <BookingPageShell
       backHref={`/book/${hospitalId}/${departmentSlug}/${doctorId}`}
       backLabel="Saatlere dön"
-      eyebrow={`${slot.doctor.department.hospital.name} · ${slot.doctor.department.name}`}
-      title={`${slot.doctor.title} ${slot.doctor.name}`}
+      eyebrow={`${department.hospital.name} · ${department.name}`}
+      title={`${slot.doctor.title ?? ''} ${slot.doctor.name}`}
       description={`${formattedDate}, ${slot.startTime} tarihli randevunuzu almak için telefon numaranızı girerek doğrulayın`}
     >
       <PhoneOtpForm

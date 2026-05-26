@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 import { prisma } from '@/lib/prisma'
 
@@ -43,6 +44,39 @@ function requireId(value: unknown, fieldName: string) {
   }
 
   return id
+}
+
+function requirePassword(value: unknown) {
+  const password = typeof value === 'string' ? value : ''
+
+  if (password.length < 8 || password.length > 128) {
+    throw new AdminMutationError('Şifre en az 8 karakter olmalıdır')
+  }
+
+  return password
+}
+
+function normalizeUsername(value: string) {
+  const username = value
+    .trim()
+    .toLocaleLowerCase('tr-TR')
+    .replace(/\s+/g, '_')
+    .replace(/[^\p{L}\p{N}_]/gu, '')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  return username
+}
+
+function requireUsername(value: unknown) {
+  const rawUsername = normalizeText(value)
+  const username = normalizeUsername(rawUsername)
+
+  if (username.length < 3 || username.length > 60) {
+    throw new AdminMutationError('Kullanıcı adı geçersiz')
+  }
+
+  return username
 }
 
 function optionalText(value: unknown, fieldName: string, maxLength: number) {
@@ -143,6 +177,9 @@ export async function createDoctor(input: Record<string, unknown>) {
   const title = requireText(input.title, 'Unvan', 2, 50)
   const name = requireText(input.name, 'Doktor adı', 2, 120)
 
+  const username = requireUsername(input.username)
+  const password = requirePassword(input.password)
+
   const department = await prisma.department.findUnique({
     where: { id: departmentId },
     select: { id: true },
@@ -152,18 +189,47 @@ export async function createDoctor(input: Record<string, unknown>) {
     throw new AdminMutationError('Tıbbi birim bulunamadı', 404)
   }
 
-  return prisma.doctor.create({
-    data: { departmentId, title, name },
-    select: { id: true, departmentId: true, title: true, name: true, isActive: true },
-  })
+  const hashedPassword = await bcrypt.hash(password, 10)
+
+  try {
+    return await prisma.panelUser.create({
+      data: {
+        departmentId,
+        name,
+        password: hashedPassword,
+        role: 'DOCTOR',
+        title,
+        username,
+      },
+      select: {
+        id: true,
+        departmentId: true,
+        username: true,
+        title: true,
+        name: true,
+        isActive: true,
+      },
+    })
+  } catch (error) {
+    mapPrismaError(error, 'Bu doktor kullanıcısı zaten var')
+  }
 }
 
 export async function setDoctorActive(input: Record<string, unknown>) {
   const id = requireId(input.id, 'Doktor')
   const isActive = input.isActive === true || input.isActive === 'true'
 
+  const doctor = await prisma.panelUser.findFirst({
+    where: { id, role: 'DOCTOR' },
+    select: { id: true },
+  })
+
+  if (!doctor) {
+    throw new AdminMutationError('Doktor bulunamadı', 404)
+  }
+
   try {
-    return await prisma.doctor.update({
+    return await prisma.panelUser.update({
       where: { id },
       data: { isActive },
       select: { id: true, isActive: true },

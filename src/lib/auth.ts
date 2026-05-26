@@ -1,8 +1,13 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
+import type { PanelUserRole } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
+
+function isPanelUserRole(value: unknown): value is PanelUserRole {
+  return value === 'ADMIN' || value === 'DOCTOR' || value === 'SECRETARY'
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -19,19 +24,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
-        const admin = await prisma.admin.findUnique({
+        const user = await prisma.panelUser.findUnique({
           where: { username },
         })
 
-        if (!admin) return null
+        if (!user || !user.isActive) return null
 
-        const validPassword = await bcrypt.compare(password, admin.password)
+        const validPassword = await bcrypt.compare(password, user.password)
         if (!validPassword) return null
 
         return {
-          id: admin.id,
-          name: admin.name,
-          username: admin.username,
+          id: user.id,
+          name: user.name,
+          username: user.username,
+          role: user.role,
         }
       },
     }),
@@ -39,16 +45,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     jwt({ token, user }) {
       if (user) {
+        token.id = user.id
         token.username = user.username
+        token.role = user.role
       }
 
       return token
     },
     session({ session, token }) {
       if (session.user) {
-        session.user.id = token.sub ?? ''
+        session.user.id =
+          typeof token.id === 'string' ? token.id : token.sub ?? ''
+        session.user.name =
+          typeof token.name === 'string' ? token.name : session.user.name ?? ''
         session.user.username =
           typeof token.username === 'string' ? token.username : ''
+        session.user.role = isPanelUserRole(token.role) ? token.role : 'ADMIN'
       }
 
       return session

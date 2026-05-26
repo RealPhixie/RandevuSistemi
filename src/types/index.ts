@@ -1,11 +1,13 @@
 import type { DefaultSession } from 'next-auth'
 import type {} from 'next-auth/jwt'
+import type { PanelUserRole } from '@prisma/client'
 import type { AppointmentStatusValue } from '@/lib/appointment-status'
 
-export interface AdminSessionUser {
+export interface PanelSessionUser {
   id: string
-  name?: string | null
+  name: string
   username: string
+  role: PanelUserRole
 }
 
 export interface HospitalOption {
@@ -72,16 +74,19 @@ export interface AdminAppointmentOption {
 
 declare module 'next-auth' {
   interface Session {
-    user?: AdminSessionUser & DefaultSession['user']
+    user: PanelSessionUser & DefaultSession['user']
   }
 
   interface User {
     username: string
+    role: PanelUserRole
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT {
+    id?: string
     username?: string
+    role?: PanelUserRole
   }
 }

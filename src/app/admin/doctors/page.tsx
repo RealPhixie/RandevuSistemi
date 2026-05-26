@@ -61,7 +61,8 @@ export default async function AdminDoctorsPage({
       orderBy: [{ hospital: { name: 'asc' } }, { name: 'asc' }],
       include: { hospital: { select: { name: true } } },
     }),
-    prisma.doctor.findMany({
+    prisma.panelUser.findMany({
+      where: { role: 'DOCTOR' },
       orderBy: [
         { department: { hospital: { name: 'asc' } } },
         { department: { name: 'asc' } },
@@ -88,7 +89,7 @@ export default async function AdminDoctorsPage({
 
       <form
         action={createDoctorAction}
-        className="grid gap-4 rounded-3xl border border-[#cbd8ea] bg-white p-5 shadow-sm lg:grid-cols-[1fr_160px_1fr_auto] lg:items-end"
+        className="grid gap-4 rounded-3xl border border-[#cbd8ea] bg-white p-5 shadow-sm lg:grid-cols-[1fr_130px_1fr_1fr_160px_auto] lg:items-end"
       >
         <label className="block">
           <span className="mb-2 block text-sm font-semibold text-[#0d1b3d]">
@@ -134,6 +135,34 @@ export default async function AdminDoctorsPage({
           />
         </label>
 
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-[#0d1b3d]">
+            Kullanıcı Adı
+          </span>
+          <input
+            name="username"
+            type="text"
+            required
+            minLength={3}
+            maxLength={60}
+            className="h-11 w-full rounded-2xl border border-[#cbd8ea] px-4 text-sm font-semibold text-[#102040] outline-none transition focus:border-red-500"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-[#0d1b3d]">
+            Şifre
+          </span>
+          <input
+            name="password"
+            type="password"
+            required
+            minLength={8}
+            maxLength={128}
+            className="h-11 w-full rounded-2xl border border-[#cbd8ea] px-4 text-sm font-semibold text-[#102040] outline-none transition focus:border-red-500"
+          />
+        </label>
+
         <button
           type="submit"
           className="h-11 rounded-2xl bg-red-600 px-6 text-sm font-bold text-white transition hover:bg-red-700"
@@ -154,6 +183,7 @@ export default async function AdminDoctorsPage({
             <thead>
               <tr className="border-b border-[#d7e0ef] text-xs font-bold uppercase text-[#70809a]">
                 <th className="px-5 py-4">Doktor</th>
+                <th className="px-5 py-4">Kullanıcı Adı</th>
                 <th className="px-5 py-4">Hastane</th>
                 <th className="px-5 py-4">Birim</th>
                 <th className="px-5 py-4">Durum</th>
@@ -167,13 +197,16 @@ export default async function AdminDoctorsPage({
                   className="border-b border-[#edf2f8] last:border-b-0"
                 >
                   <td className="px-5 py-4 text-sm font-bold text-[#102040]">
-                    {doctor.title} {doctor.name}
+                    {doctor.title ?? ''} {doctor.name}
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
-                    {doctor.department.hospital.name}
+                    {doctor.username}
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
-                    {doctor.department.name}
+                    {doctor.department?.hospital.name ?? '-'}
+                  </td>
+                  <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
+                    {doctor.department?.name ?? '-'}
                   </td>
                   <td className="px-5 py-4">
                     <span

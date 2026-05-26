@@ -30,12 +30,12 @@ type AppointmentRecord = {
     startTime: string
     endTime: string
     doctor: {
-      title: string
+      title: string | null
       name: string
       department: {
         name: string
         hospital: { name: string }
-      }
+      } | null
     }
   }
 }
@@ -47,9 +47,9 @@ function mapAppointment(record: AppointmentRecord): PatientAppointmentOption {
     date: record.timeSlot.date.toISOString(),
     startTime: record.timeSlot.startTime,
     endTime: record.timeSlot.endTime,
-    hospitalName: record.timeSlot.doctor.department.hospital.name,
-    departmentName: record.timeSlot.doctor.department.name,
-    doctorTitle: record.timeSlot.doctor.title,
+    hospitalName: record.timeSlot.doctor.department?.hospital.name ?? '-',
+    departmentName: record.timeSlot.doctor.department?.name ?? '-',
+    doctorTitle: record.timeSlot.doctor.title ?? '',
     doctorName: record.timeSlot.doctor.name,
   }
 }

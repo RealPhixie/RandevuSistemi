@@ -34,12 +34,13 @@ export default async function Home() {
             },
           },
           _count: {
-            select: { doctors: true },
+            select: { panelUsers: { where: { role: 'DOCTOR' } } },
           },
         },
       }),
-      prisma.doctor.findMany({
+      prisma.panelUser.findMany({
         where: {
+          role: 'DOCTOR',
           isActive: true,
           department: {
             isActive: true,
@@ -83,19 +84,23 @@ export default async function Home() {
       hospitalName: department.hospital.name,
       name: department.name,
       icon: department.icon,
-      doctorCount: department._count.doctors,
+      doctorCount: department._count.panelUsers,
     })
   )
 
-  const doctors: DoctorSearchOption[] = doctorRecords.map((doctor) => ({
-    id: doctor.id,
-    departmentId: doctor.department.id,
-    departmentName: doctor.department.name,
-    hospitalId: doctor.department.hospital.id,
-    hospitalName: doctor.department.hospital.name,
-    title: doctor.title,
-    name: doctor.name,
-  }))
+  const doctors: DoctorSearchOption[] = doctorRecords.flatMap((doctor) => {
+    if (!doctor.department) return []
+
+    return {
+      id: doctor.id,
+      departmentId: doctor.department.id,
+      departmentName: doctor.department.name,
+      hospitalId: doctor.department.hospital.id,
+      hospitalName: doctor.department.hospital.name,
+      title: doctor.title ?? '',
+      name: doctor.name,
+    }
+  })
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#eaf1fb] text-[#111827]">

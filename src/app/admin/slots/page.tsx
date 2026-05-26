@@ -139,8 +139,9 @@ export default async function AdminWorkingHoursPage({
 
   await ensureRollingSlotsForActiveDoctors()
 
-  const doctors = await prisma.doctor.findMany({
+  const doctors = await prisma.panelUser.findMany({
     where: {
+      role: 'DOCTOR',
       isActive: true,
       department: {
         isActive: true,
@@ -215,8 +216,9 @@ export default async function AdminWorkingHoursPage({
           >
             {doctors.map((doctor) => (
               <option key={doctor.id} value={doctor.id}>
-                {doctor.department.hospital.name} - {doctor.department.name} -{' '}
-                {doctor.title} {doctor.name}
+                {doctor.department?.hospital.name ?? 'Hastane yok'} -{' '}
+                {doctor.department?.name ?? 'Birim yok'} - {doctor.title ?? ''}{' '}
+                {doctor.name}
               </option>
             ))}
           </select>
@@ -267,11 +269,11 @@ export default async function AdminWorkingHoursPage({
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d7e0ef] pb-4">
             <div>
               <p className="text-sm font-bold text-[#0d1b3d]">
-                {selectedDoctor.title} {selectedDoctor.name}
+                {selectedDoctor.title ?? ''} {selectedDoctor.name}
               </p>
               <p className="mt-1 text-sm font-semibold text-[#52617a]">
-                {selectedDoctor.department.hospital.name} -{' '}
-                {selectedDoctor.department.name} -{' '}
+                {selectedDoctor.department?.hospital.name ?? 'Hastane yok'} -{' '}
+                {selectedDoctor.department?.name ?? 'Birim yok'} -{' '}
                 {dateFormatter.format(selectedDateRange?.start ?? new Date())}
               </p>
             </div>

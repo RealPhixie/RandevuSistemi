@@ -182,9 +182,10 @@ async function createRollingSlotsForDoctorIds(doctorIds: string[]) {
 }
 
 export async function ensureRollingSlotsForDoctor(doctorId: string) {
-  const doctor = await prisma.doctor.findFirst({
+  const doctor = await prisma.panelUser.findFirst({
     where: {
       id: doctorId,
+      role: 'DOCTOR',
       isActive: true,
       department: {
         isActive: true,
@@ -202,8 +203,9 @@ export async function ensureRollingSlotsForDoctor(doctorId: string) {
 }
 
 export async function ensureRollingSlotsForActiveDoctors() {
-  const doctors = await prisma.doctor.findMany({
+  const doctors = await prisma.panelUser.findMany({
     where: {
+      role: 'DOCTOR',
       isActive: true,
       department: {
         isActive: true,
@@ -225,9 +227,10 @@ export async function updateDoctorSlotAvailability(
   const allDay = toBoolean(input.allDay)
   const times = normalizeTimes(input.times, allDay)
 
-  const doctor = await prisma.doctor.findFirst({
+  const doctor = await prisma.panelUser.findFirst({
     where: {
       id: doctorId,
+      role: 'DOCTOR',
       isActive: true,
       department: {
         isActive: true,

@@ -64,7 +64,7 @@ export default async function VerifyPage({ searchParams }: VerifyPageProps) {
     },
   })
 
-  if (!slot) notFound()
+  if (!slot || !slot.doctor.department) notFound()
 
   const slotDate = getLocalDateInputValue(slot.date)
 
@@ -75,24 +75,25 @@ export default async function VerifyPage({ searchParams }: VerifyPageProps) {
   const formattedDate = new Intl.DateTimeFormat('tr-TR', {
     dateStyle: 'long',
   }).format(slot.date)
-  const departmentSlug = slugifyPathSegment(slot.doctor.department.name)
-  const backHref = `/book/${slot.doctor.department.hospital.id}/${departmentSlug}/${slot.doctor.id}`
+  const department = slot.doctor.department
+  const departmentSlug = slugifyPathSegment(department.name)
+  const backHref = `/book/${department.hospital.id}/${departmentSlug}/${slot.doctor.id}`
 
   return (
     <BookingPageShell
       backHref={backHref}
       backLabel="Randevu seçimine dön"
-      eyebrow={`${slot.doctor.department.hospital.name} · ${slot.doctor.department.name}`}
+      eyebrow={`${department.hospital.name} · ${department.name}`}
       title="Telefon Doğrulama"
-      description={`${slot.doctor.title} ${slot.doctor.name} - ${formattedDate}, ${slot.startTime} randevusu için ${phone} numarasına gönderilen kodu girin.`}
+      description={`${slot.doctor.title ?? ''} ${slot.doctor.name} - ${formattedDate}, ${slot.startTime} randevusu için ${phone} numarasına gönderilen kodu girin.`}
     >
       <VerifyOtpForm
         phone={phone}
         slotId={slotId}
         appointmentDetails={{
-          hospitalName: slot.doctor.department.hospital.name,
-          departmentName: slot.doctor.department.name,
-          doctorName: `${slot.doctor.title} ${slot.doctor.name}`,
+          hospitalName: department.hospital.name,
+          departmentName: department.name,
+          doctorName: `${slot.doctor.title ?? ''} ${slot.doctor.name}`.trim(),
           date: formattedDate,
           startTime: slot.startTime,
           endTime: slot.endTime,

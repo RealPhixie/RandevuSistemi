@@ -42,7 +42,9 @@ export default async function AppointmentSuccessPage({
     },
   })
 
-  if (!appointment) notFound()
+  if (!appointment || !appointment.timeSlot.doctor.department) notFound()
+
+  const department = appointment.timeSlot.doctor.department
 
   const formattedDate = new Intl.DateTimeFormat('tr-TR', {
     dateStyle: 'long',
@@ -68,13 +70,13 @@ export default async function AppointmentSuccessPage({
             {appointment.patient.phone}
           </AppointmentDetail>
           <AppointmentDetail label="Hastane">
-            {appointment.timeSlot.doctor.department.hospital.name}
+            {department.hospital.name}
           </AppointmentDetail>
           <AppointmentDetail label="Tıbbi Birim">
-            {appointment.timeSlot.doctor.department.name}
+            {department.name}
           </AppointmentDetail>
           <AppointmentDetail label="Doktor">
-            {appointment.timeSlot.doctor.title} {appointment.timeSlot.doctor.name}
+            {appointment.timeSlot.doctor.title ?? ''} {appointment.timeSlot.doctor.name}
           </AppointmentDetail>
           <AppointmentDetail label="Saat">
             {appointment.timeSlot.startTime} - {appointment.timeSlot.endTime}

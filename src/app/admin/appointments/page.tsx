@@ -48,14 +48,18 @@ function mapAppointment(
     }
   }>
 ): AdminAppointmentOption {
+  const department = appointment.timeSlot.doctor.department
+
   return {
     id: appointment.id,
     status: appointment.status,
     patientName: `${appointment.patient.firstName} ${appointment.patient.lastName}`,
     patientPhone: appointment.patient.phone,
-    hospitalName: appointment.timeSlot.doctor.department.hospital.name,
-    departmentName: appointment.timeSlot.doctor.department.name,
-    doctorName: `${appointment.timeSlot.doctor.title} ${appointment.timeSlot.doctor.name}`,
+    hospitalName: department?.hospital.name ?? '-',
+    departmentName: department?.name ?? '-',
+    doctorName: `${appointment.timeSlot.doctor.title ?? ''} ${
+      appointment.timeSlot.doctor.name
+    }`.trim(),
     date: dateFormatter.format(appointment.timeSlot.date),
     startTime: appointment.timeSlot.startTime,
     endTime: appointment.timeSlot.endTime,

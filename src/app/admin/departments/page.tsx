@@ -68,7 +68,7 @@ export default async function AdminDepartmentsPage({
       orderBy: [{ hospital: { name: 'asc' } }, { name: 'asc' }],
       include: {
         hospital: { select: { name: true } },
-        _count: { select: { doctors: true } },
+        _count: { select: { panelUsers: { where: { role: 'DOCTOR' } } } },
       },
     }),
   ])
@@ -171,7 +171,7 @@ export default async function AdminDepartmentsPage({
                     {department.hospital.name}
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
-                    {department._count.doctors}
+                    {department._count.panelUsers}
                   </td>
                   <td className="px-5 py-4">
                     <span

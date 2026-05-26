@@ -30,7 +30,7 @@ export default async function DepartmentSelectionPage({
         orderBy: { name: 'asc' },
         include: {
           _count: {
-            select: { doctors: true },
+            select: { panelUsers: { where: { role: 'DOCTOR' } } },
           },
         },
       },
@@ -46,7 +46,7 @@ export default async function DepartmentSelectionPage({
       hospitalName: hospital.name,
       name: department.name,
       icon: department.icon,
-      doctorCount: department._count.doctors,
+      doctorCount: department._count.panelUsers,
     })
   )
 
