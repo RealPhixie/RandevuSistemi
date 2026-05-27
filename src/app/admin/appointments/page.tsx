@@ -57,17 +57,19 @@ function mapAppointment(
         }
       }
     }
-  }>
+  }>,
+  role: 'ADMIN' | 'SECRETARY' | 'DOCTOR'
 ): AdminAppointmentOption {
   const department = appointment.timeSlot.doctor.department
+  const showPatientContact = role !== 'DOCTOR'
 
   return {
     id: appointment.id,
     status: appointment.status,
     isConfirmed: appointment.isConfirmed,
     patientName: `${appointment.patient.firstName} ${appointment.patient.lastName}`,
-    patientPhone: appointment.patient.phone,
-    patientTckn: appointment.patient.tckn,
+    patientPhone: showPatientContact ? appointment.patient.phone : '',
+    patientTckn: role === 'SECRETARY' ? appointment.patient.tckn : '',
     patientBirthDate: birthDateFormatter.format(appointment.patient.birthDate),
     hospitalName: department?.hospital.name ?? '-',
     departmentName: department?.name ?? '-',
@@ -219,7 +221,9 @@ export default async function AdminAppointmentsPage({
       ) : null}
 
       <AppointmentTable
-        appointments={appointments.map(mapAppointment)}
+        appointments={appointments.map((appointment) =>
+          mapAppointment(appointment, user.role)
+        )}
         initialTcknSearch={tcknSearch}
         role={user.role}
       />

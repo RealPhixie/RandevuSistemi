@@ -2,8 +2,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createDoctor, setDoctorActive } from '@/lib/admin-management'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { requireRole } from '@/lib/require-role'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,10 +14,10 @@ interface AdminDoctorsPageProps {
 }
 
 async function requireAdmin() {
-  const session = await auth()
+  const user = await requireRole(['ADMIN'])
 
-  if (!session?.user) {
-    redirect('/admin/login')
+  if (!user) {
+    redirect('/admin/appointments')
   }
 }
 
@@ -54,6 +54,8 @@ async function updateDoctorStatusAction(formData: FormData) {
 export default async function AdminDoctorsPage({
   searchParams,
 }: AdminDoctorsPageProps) {
+  await requireAdmin()
+
   const query = await searchParams
   const hasError = typeof query.error === 'string'
   const [departments, doctors] = await Promise.all([
