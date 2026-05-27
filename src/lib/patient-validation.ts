@@ -1,4 +1,4 @@
-export const TURKISH_MOBILE_PHONE_PATTERN = /^05\d{9}$/
+const TURKISH_MOBILE_PHONE_PATTERN = /^05\d{9}$/
 
 export function normalizePhone(value: unknown) {
   return typeof value === 'string' ? value.replace(/\s/g, '').trim() : ''

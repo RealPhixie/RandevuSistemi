@@ -7,9 +7,9 @@ import {
 } from '@/lib/booking-time'
 import { prisma } from '@/lib/prisma'
 
-export const ROLLING_SLOT_DAYS = 14
+const ROLLING_SLOT_DAYS = 14
 
-export interface SlotTimeOption {
+interface SlotTimeOption {
   startTime: string
   endTime: string
 }
@@ -39,7 +39,7 @@ const DEFAULT_SLOT_START_TIMES = new Set(
   DEFAULT_SLOT_TIMES.map((slot) => slot.startTime)
 )
 
-export function addDaysToDateInput(date: string, days: number) {
+function addDaysToDateInput(date: string, days: number) {
   const nextDate = addDateInputDays(date, days)
 
   if (!nextDate) {

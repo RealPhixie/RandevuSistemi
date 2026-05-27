@@ -1,6 +1,6 @@
-export const BOOKING_TIME_ZONE = 'Europe/Istanbul'
+const BOOKING_TIME_ZONE = 'Europe/Istanbul'
 
-export interface LocalDateTimeParts {
+interface LocalDateTimeParts {
   date: string
   time: string
 }

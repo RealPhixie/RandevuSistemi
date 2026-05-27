@@ -7,7 +7,7 @@ export interface PanelSessionUser {
   id: string
   name: string
   username: string
-  role: PanelUserRole
+  role?: PanelUserRole
 }
 
 export interface HospitalOption {
@@ -63,6 +63,7 @@ export interface AdminAppointmentOption {
   id: string
   status: AppointmentStatusValue
   isConfirmed: boolean
+  canConfirm: boolean
   patientName: string
   patientPhone: string
   patientTckn: string

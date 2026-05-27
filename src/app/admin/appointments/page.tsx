@@ -62,11 +62,18 @@ function mapAppointment(
 ): AdminAppointmentOption {
   const department = appointment.timeSlot.doctor.department
   const showPatientContact = role !== 'DOCTOR'
+  const appointmentDate = getLocalDateInputValue(appointment.timeSlot.date)
+  const canSecretaryConfirm =
+    role === 'SECRETARY' &&
+    !appointment.isConfirmed &&
+    appointmentDate === getLocalDateInputValue() &&
+    (appointment.status === 'SCHEDULED' || appointment.status === 'NO_SHOW')
 
   return {
     id: appointment.id,
     status: appointment.status,
     isConfirmed: appointment.isConfirmed,
+    canConfirm: canSecretaryConfirm,
     patientName: `${appointment.patient.firstName} ${appointment.patient.lastName}`,
     patientPhone: showPatientContact ? appointment.patient.phone : '',
     patientTckn: role === 'SECRETARY' ? appointment.patient.tckn : '',

@@ -1,25 +1,25 @@
 import { Sidebar } from '@/components/admin/Sidebar'
-import { auth } from '@/lib/auth'
+import { requireRole } from '@/lib/require-role'
 
 interface AdminLayoutProps {
   children: React.ReactNode
 }
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  const session = await auth()
+  const user = await requireRole(['ADMIN', 'DOCTOR', 'SECRETARY'])
 
-  if (!session?.user) {
+  if (!user) {
     return children
   }
 
-  const name = session.user.name ?? session.user.username
+  const name = user.name ?? user.username
 
   return (
     <div className="min-h-screen bg-[#eaf1fb] lg:flex">
       <Sidebar
         name={name}
-        role={session.user.role}
-        username={session.user.username}
+        role={user.role}
+        username={user.username}
       />
       <main className="min-w-0 flex-1 px-5 py-6 sm:px-8 lg:px-10">
         {children}

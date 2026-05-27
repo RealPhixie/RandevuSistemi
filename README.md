@@ -2,7 +2,7 @@
 
 Next.js 16, Prisma ve Neon PostgreSQL ile hazırlanmış üniversite projesi.
 Hasta tarafında hastane, tıbbi birim, doktor ve saat seçilerek randevu alınır.
-Admin tarafında hastane, birim, doktor, çalışma saatleri ve randevular yönetilir.
+Panel tarafında admin, sekreter ve doktor rolleriyle randevu süreci yönetilir.
 
 ## Teknolojiler
 
@@ -69,12 +69,19 @@ Mevcut test verileri:
 - Birimlere bağlı doktorlar
 - Aktif doktorlar için otomatik 14 günlük hafta içi randevu saatleri
 - Admin kullanıcı
+- Doktor panel kullanıcıları
 
 Admin giriş bilgisi:
 
 ```txt
 Kullanıcı adı: admin
 Şifre: Admin123!
+```
+
+Migrasyondan gelen doktor kullanıcılarının geçici şifresi:
+
+```txt
+TempPass123!
 ```
 
 ## Hasta Akışı
@@ -90,15 +97,21 @@ Kullanıcı adı: admin
 
 `Randevularım` sekmesinde randevular yalnızca telefon doğrulamasından sonra gösterilir.
 
-## Admin Akışı
+## Panel Akışı
 
-Admin paneli:
+Panel girişi:
 
 ```txt
 /admin
 ```
 
-Yönetilen alanlar:
+Roller:
+
+- Admin: Dashboard, randevular, hastaneler, tıbbi birimler, doktorlar ve çalışma saatleri.
+- Sekreter: Randevuları görür, TC Kimlik No ile arar ve gelen hastayı onaylar.
+- Doktor: Yalnızca kendi bugünkü onaylı randevularını görür ve hasta için doktor notu kaydeder.
+
+Admin tarafından yönetilen alanlar:
 
 - Randevular
 - Hastaneler
@@ -112,6 +125,8 @@ Randevular ekranında işlem olarak yalnızca:
 - `İptal Et`
 
 bulunur. Randevu saatinden 15 dakika sonra hâlâ `Geldi` yapılmamış randevular otomatik `Gelmedi` durumuna alınır.
+
+Sekreterin `Onayla` işlemi hastanın geldiğini belirtir ve randevuyu `Geldi` durumuna taşır.
 
 ## Çalışma Saatleri
 

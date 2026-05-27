@@ -54,7 +54,7 @@ export default async function AdminLoginPage({
             Yönetim
           </p>
           <h1 className="mt-2 text-3xl font-bold text-[#0d1b3d]">
-            Admin Girişi
+            Panel Girişi
           </h1>
 
           <form action={loginAction} className="mt-7 grid gap-4">

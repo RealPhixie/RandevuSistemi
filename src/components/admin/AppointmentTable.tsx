@@ -331,7 +331,7 @@ export function AppointmentTable({
                         </div>
                       ) : null}
 
-                      {role === 'SECRETARY' && !appointment.isConfirmed ? (
+                      {role === 'SECRETARY' && appointment.canConfirm ? (
                         <button
                           type="button"
                           disabled={updatingId === appointment.id}
@@ -344,7 +344,7 @@ export function AppointmentTable({
                         </button>
                       ) : null}
 
-                      {role === 'SECRETARY' && appointment.isConfirmed ? (
+                      {role === 'SECRETARY' && !appointment.canConfirm ? (
                         <span className="text-sm font-semibold text-[#70809a]">
                           -
                         </span>

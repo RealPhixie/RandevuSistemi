@@ -1,3 +1,4 @@
+import { getLocalDateInputValue, getUtcDateRange } from '@/lib/booking-time'
 import { prisma } from '@/lib/prisma'
 import { requireRole } from '@/lib/require-role'
 
@@ -8,6 +9,29 @@ interface DoctorNotePutRequestBody {
 
 function normalizeText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+async function canAccessPatientNote(doctorId: string, patientId: string) {
+  const todayRange = getUtcDateRange(getLocalDateInputValue())
+
+  if (!todayRange) return false
+
+  const appointment = await prisma.appointment.findFirst({
+    where: {
+      patientId,
+      isConfirmed: true,
+      timeSlot: {
+        doctorId,
+        date: {
+          gte: todayRange.start,
+          lt: todayRange.end,
+        },
+      },
+    },
+    select: { id: true },
+  })
+
+  return Boolean(appointment)
 }
 
 export async function GET(request: Request) {
@@ -27,6 +51,15 @@ export async function GET(request: Request) {
     return Response.json(
       { success: false, error: 'Hasta bilgisi gereklidir' },
       { status: 400 }
+    )
+  }
+
+  const canAccess = await canAccessPatientNote(user.id, patientId)
+
+  if (!canAccess) {
+    return Response.json(
+      { success: false, error: 'Bu hasta için not erişiminiz yok' },
+      { status: 403 }
     )
   }
 
@@ -90,6 +123,15 @@ export async function PUT(request: Request) {
     return Response.json(
       { success: false, error: 'Hasta bulunamadı' },
       { status: 404 }
+    )
+  }
+
+  const canAccess = await canAccessPatientNote(user.id, patientId)
+
+  if (!canAccess) {
+    return Response.json(
+      { success: false, error: 'Bu hasta için not erişiminiz yok' },
+      { status: 403 }
     )
   }
 

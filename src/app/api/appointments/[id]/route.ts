@@ -3,6 +3,7 @@ import type { AppointmentStatus } from '@prisma/client'
 import { markExpiredScheduledAppointmentsNoShow } from '@/lib/appointment-auto-status'
 import { isAppointmentStatusValue } from '@/lib/appointment-status'
 import { auth } from '@/lib/auth'
+import { getLocalDateInputValue } from '@/lib/booking-time'
 import { prisma } from '@/lib/prisma'
 import { requireRole } from '@/lib/require-role'
 
@@ -34,8 +35,11 @@ function getAction(body: AppointmentPatchRequestBody): AppointmentAction | null 
   return null
 }
 
-function canConfirmStatus(status: AppointmentStatus) {
-  return status === 'SCHEDULED' || status === 'NO_SHOW'
+function canConfirmAppointment(status: AppointmentStatus, date: Date) {
+  return (
+    (status === 'SCHEDULED' || status === 'NO_SHOW') &&
+    getLocalDateInputValue(date) === getLocalDateInputValue()
+  )
 }
 
 export async function PATCH(
@@ -67,7 +71,7 @@ export async function PATCH(
 
   const appointment = await prisma.appointment.findUnique({
     where: { id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, timeSlot: { select: { date: true } } },
   })
 
   if (!appointment) {
@@ -96,7 +100,7 @@ export async function PATCH(
       )
     }
 
-    if (!canConfirmStatus(appointment.status)) {
+    if (!canConfirmAppointment(appointment.status, appointment.timeSlot.date)) {
       return Response.json(
         { success: false, error: 'Bu randevu onaylanamaz' },
         { status: 400 }

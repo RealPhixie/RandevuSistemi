@@ -1,13 +1,9 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
-import type { PanelUserRole } from '@prisma/client'
 
+import { isPanelUserRole } from '@/lib/panel-user-role'
 import { prisma } from '@/lib/prisma'
-
-function isPanelUserRole(value: unknown): value is PanelUserRole {
-  return value === 'ADMIN' || value === 'DOCTOR' || value === 'SECRETARY'
-}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -60,7 +56,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           typeof token.name === 'string' ? token.name : session.user.name ?? ''
         session.user.username =
           typeof token.username === 'string' ? token.username : ''
-        session.user.role = isPanelUserRole(token.role) ? token.role : 'ADMIN'
+        if (isPanelUserRole(token.role)) {
+          session.user.role = token.role
+        }
       }
 
       return session
