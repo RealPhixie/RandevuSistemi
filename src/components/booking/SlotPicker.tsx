@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react'
 
 import {
   addDaysToDateInput,
-  getLocalDateInputValue,
   getLocalDateTimeParts,
   isBookableSlot,
 } from '@/lib/booking-time'
@@ -26,7 +25,8 @@ export function SlotPicker({
   doctorId,
   initialDate,
 }: SlotPickerProps) {
-  const today = useMemo(() => getLocalDateInputValue(), [])
+  const [localNow, setLocalNow] = useState(() => getLocalDateTimeParts())
+  const today = localNow.date
   const maxDate = useMemo(() => addDaysToDateInput(today, 14) ?? today, [today])
   const [selectedDate, setSelectedDate] = useState(() =>
     initialDate < today ? today : initialDate > maxDate ? maxDate : initialDate
@@ -34,7 +34,6 @@ export function SlotPicker({
   const [slots, setSlots] = useState<SlotOption[]>([])
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [localNow, setLocalNow] = useState(() => getLocalDateTimeParts())
 
   useEffect(() => {
     const interval = window.setInterval(() => {

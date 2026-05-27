@@ -19,17 +19,7 @@ interface AppointmentTableProps {
 
 interface AppointmentUpdateResponse {
   success: boolean
-  data?: {
-    id: string
-    status: AppointmentStatusValue
-    isConfirmed?: boolean
-  }
   error?: string
-}
-
-interface AppointmentRowUpdate {
-  status: AppointmentStatusValue
-  isConfirmed: boolean
 }
 
 const statusClassNames: Record<AppointmentStatusValue, string> = {
@@ -58,6 +48,8 @@ const ACTION_BUTTONS = [
   symbol: string
   className: string
 }>
+
+const APPOINTMENTS_REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
 function statusLabel(status: AppointmentStatusValue) {
   return (
@@ -91,12 +83,19 @@ export function AppointmentTable({
 }: AppointmentTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [rowUpdates, setRowUpdates] = useState<
-    Record<string, AppointmentRowUpdate>
-  >({})
   const [updatingId, setUpdatingId] = useState('')
   const [error, setError] = useState('')
   const [tcknSearch, setTcknSearch] = useState(initialTcknSearch)
+
+  useEffect(() => {
+    if (role !== 'SECRETARY' && role !== 'DOCTOR') return
+
+    const interval = window.setInterval(() => {
+      router.refresh()
+    }, APPOINTMENTS_REFRESH_INTERVAL_MS)
+
+    return () => window.clearInterval(interval)
+  }, [role, router])
 
   useEffect(() => {
     if (role !== 'SECRETARY') return
@@ -122,19 +121,10 @@ export function AppointmentTable({
     return () => window.clearTimeout(timeout)
   }, [role, router, searchParams, tcknSearch])
 
-  const rows = useMemo(
-    () =>
-      appointments.map((appointment) => {
-        const update = rowUpdates[appointment.id]
-        return update ? { ...appointment, ...update } : appointment
-      }),
-    [appointments, rowUpdates]
-  )
-
   const visibleRows = useMemo(() => {
-    if (role !== 'SECRETARY' || !tcknSearch) return rows
-    return rows.filter((row) => row.patientTckn.includes(tcknSearch))
-  }, [role, rows, tcknSearch])
+    if (role !== 'SECRETARY' || !tcknSearch) return appointments
+    return appointments.filter((row) => row.patientTckn.includes(tcknSearch))
+  }, [appointments, role, tcknSearch])
 
   async function updateStatus(
     appointmentId: string,
@@ -151,27 +141,12 @@ export function AppointmentTable({
       })
       const payload = (await response.json()) as AppointmentUpdateResponse
 
-      if (!response.ok || !payload.success || !payload.data) {
+      if (!response.ok || !payload.success) {
         setError(payload.error ?? 'Randevu durumu güncellenemedi.')
         return
       }
 
-      const updatedAppointment = payload.data
-      const currentAppointment = appointments.find(
-        (appointment) => appointment.id === updatedAppointment.id
-      )
-
-      setRowUpdates((currentUpdates) => ({
-        ...currentUpdates,
-        [updatedAppointment.id]: {
-          status: updatedAppointment.status,
-          isConfirmed:
-            updatedAppointment.isConfirmed ??
-            currentUpdates[updatedAppointment.id]?.isConfirmed ??
-            currentAppointment?.isConfirmed ??
-            false,
-        },
-      }))
+      router.refresh()
     } catch {
       setError('Randevu durumu güncellenemedi.')
     } finally {
@@ -191,20 +166,12 @@ export function AppointmentTable({
       })
       const payload = (await response.json()) as AppointmentUpdateResponse
 
-      if (!response.ok || !payload.success || !payload.data) {
+      if (!response.ok || !payload.success) {
         setError(payload.error ?? 'Randevu onaylanamadı.')
         return
       }
 
-      const updatedAppointment = payload.data
-
-      setRowUpdates((currentUpdates) => ({
-        ...currentUpdates,
-        [updatedAppointment.id]: {
-          status: updatedAppointment.status,
-          isConfirmed: updatedAppointment.isConfirmed ?? true,
-        },
-      }))
+      router.refresh()
     } catch {
       setError('Randevu onaylanamadı.')
     } finally {
