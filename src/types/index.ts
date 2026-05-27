@@ -62,8 +62,11 @@ export interface PatientAppointmentOption {
 export interface AdminAppointmentOption {
   id: string
   status: AppointmentStatusValue
+  isConfirmed: boolean
   patientName: string
   patientPhone: string
+  patientTckn: string
+  patientBirthDate: string
   hospitalName: string
   departmentName: string
   doctorName: string

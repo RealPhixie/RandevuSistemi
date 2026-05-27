@@ -1,6 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import type { PanelUserRole } from '@prisma/client'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   APPOINTMENT_STATUS_OPTIONS,
@@ -10,6 +13,8 @@ import type { AdminAppointmentOption } from '@/types'
 
 interface AppointmentTableProps {
   appointments: AdminAppointmentOption[]
+  initialTcknSearch: string
+  role: PanelUserRole
 }
 
 interface AppointmentUpdateResponse {
@@ -17,8 +22,14 @@ interface AppointmentUpdateResponse {
   data?: {
     id: string
     status: AppointmentStatusValue
+    isConfirmed?: boolean
   }
   error?: string
+}
+
+interface AppointmentRowUpdate {
+  status: AppointmentStatusValue
+  isConfirmed: boolean
 }
 
 const statusClassNames: Record<AppointmentStatusValue, string> = {
@@ -55,10 +66,75 @@ function statusLabel(status: AppointmentStatusValue) {
   )
 }
 
-export function AppointmentTable({ appointments }: AppointmentTableProps) {
-  const [rows, setRows] = useState(appointments)
+function confirmationClassName(isConfirmed: boolean) {
+  return isConfirmed
+    ? 'bg-emerald-50 text-emerald-700'
+    : 'bg-slate-100 text-slate-700'
+}
+
+function tableMinWidth(role: PanelUserRole) {
+  if (role === 'SECRETARY') return 'min-w-[1220px]'
+  if (role === 'DOCTOR') return 'min-w-[760px]'
+  return 'min-w-[1120px]'
+}
+
+function columnCount(role: PanelUserRole) {
+  if (role === 'SECRETARY') return 9
+  if (role === 'DOCTOR') return 5
+  return 8
+}
+
+export function AppointmentTable({
+  appointments,
+  initialTcknSearch,
+  role,
+}: AppointmentTableProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [rowUpdates, setRowUpdates] = useState<
+    Record<string, AppointmentRowUpdate>
+  >({})
   const [updatingId, setUpdatingId] = useState('')
   const [error, setError] = useState('')
+  const [tcknSearch, setTcknSearch] = useState(initialTcknSearch)
+
+  useEffect(() => {
+    if (role !== 'SECRETARY') return
+
+    const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      const currentTckn = params.get('tckn') ?? ''
+
+      if (currentTckn === tcknSearch) return
+
+      if (tcknSearch) {
+        params.set('tckn', tcknSearch)
+      } else {
+        params.delete('tckn')
+      }
+
+      const query = params.toString()
+      router.replace(
+        query ? `/admin/appointments?${query}` : '/admin/appointments'
+      )
+    }, 400)
+
+    return () => window.clearTimeout(timeout)
+  }, [role, router, searchParams, tcknSearch])
+
+  const rows = useMemo(
+    () =>
+      appointments.map((appointment) => {
+        const update = rowUpdates[appointment.id]
+        return update ? { ...appointment, ...update } : appointment
+      }),
+    [appointments, rowUpdates]
+  )
+
+  const visibleRows = useMemo(() => {
+    if (role !== 'SECRETARY' || !tcknSearch) return rows
+    return rows.filter((row) => row.patientTckn.includes(tcknSearch))
+  }, [role, rows, tcknSearch])
 
   async function updateStatus(
     appointmentId: string,
@@ -71,7 +147,7 @@ export function AppointmentTable({ appointments }: AppointmentTableProps) {
       const response = await fetch(`/api/appointments/${appointmentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify({ action: nextStatus }),
       })
       const payload = (await response.json()) as AppointmentUpdateResponse
 
@@ -80,13 +156,22 @@ export function AppointmentTable({ appointments }: AppointmentTableProps) {
         return
       }
 
-      setRows((currentRows) =>
-        currentRows.map((row) =>
-          row.id === payload.data?.id
-            ? { ...row, status: payload.data.status }
-            : row
-        )
+      const updatedAppointment = payload.data
+      const currentAppointment = appointments.find(
+        (appointment) => appointment.id === updatedAppointment.id
       )
+
+      setRowUpdates((currentUpdates) => ({
+        ...currentUpdates,
+        [updatedAppointment.id]: {
+          status: updatedAppointment.status,
+          isConfirmed:
+            updatedAppointment.isConfirmed ??
+            currentUpdates[updatedAppointment.id]?.isConfirmed ??
+            currentAppointment?.isConfirmed ??
+            false,
+        },
+      }))
     } catch {
       setError('Randevu durumu güncellenemedi.')
     } finally {
@@ -94,94 +179,234 @@ export function AppointmentTable({ appointments }: AppointmentTableProps) {
     }
   }
 
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-3xl border border-[#cbd8ea] bg-white p-6 text-sm font-semibold text-[#52617a] shadow-sm">
-        Kayıtlı randevu bulunamadı.
-      </div>
-    )
+  async function confirmAppointment(appointmentId: string) {
+    setUpdatingId(appointmentId)
+    setError('')
+
+    try {
+      const response = await fetch(`/api/appointments/${appointmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'CONFIRM' }),
+      })
+      const payload = (await response.json()) as AppointmentUpdateResponse
+
+      if (!response.ok || !payload.success || !payload.data) {
+        setError(payload.error ?? 'Randevu onaylanamadı.')
+        return
+      }
+
+      const updatedAppointment = payload.data
+
+      setRowUpdates((currentUpdates) => ({
+        ...currentUpdates,
+        [updatedAppointment.id]: {
+          status: updatedAppointment.status,
+          isConfirmed: updatedAppointment.isConfirmed ?? true,
+        },
+      }))
+    } catch {
+      setError('Randevu onaylanamadı.')
+    } finally {
+      setUpdatingId('')
+    }
+  }
+
+  function handleTcknSearch(value: string) {
+    setTcknSearch(value.replace(/\D/g, '').slice(0, 11))
   }
 
   return (
-    <section className="rounded-3xl border border-[#cbd8ea] bg-white shadow-sm">
-      {error ? (
-        <div className="border-b border-red-100 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
-          {error}
-        </div>
+    <section className="grid gap-4">
+      {role === 'SECRETARY' ? (
+        <label className="block rounded-3xl border border-[#cbd8ea] bg-white p-5 shadow-sm">
+          <span className="mb-2 block text-sm font-semibold text-[#0d1b3d]">
+            TC Kimlik No ile Ara
+          </span>
+          <input
+            type="search"
+            inputMode="numeric"
+            value={tcknSearch}
+            onChange={(event) => handleTcknSearch(event.target.value)}
+            className="h-11 w-full rounded-2xl border border-[#cbd8ea] px-4 text-sm font-semibold text-[#102040] outline-none transition focus:border-red-500"
+          />
+        </label>
       ) : null}
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-[#d7e0ef] text-xs font-bold uppercase text-[#70809a]">
-              <th className="px-5 py-4">Hasta</th>
-              <th className="px-5 py-4">Telefon</th>
-              <th className="px-5 py-4">Doktor</th>
-              <th className="px-5 py-4">Birim</th>
-              <th className="px-5 py-4">Tarih</th>
-              <th className="px-5 py-4">Durum</th>
-              <th className="px-5 py-4">İşlem</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((appointment) => (
-              <tr
-                key={appointment.id}
-                className="border-b border-[#edf2f8] last:border-b-0"
-              >
-                <td className="px-5 py-4 text-sm font-bold text-[#102040]">
-                  {appointment.patientName}
-                </td>
-                <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
-                  {appointment.patientPhone}
-                </td>
-                <td className="px-5 py-4 text-sm font-semibold text-[#102040]">
-                  {appointment.doctorName}
-                </td>
-                <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
-                  <span>{appointment.hospitalName}</span>
-                  <span className="mt-1 block text-xs text-[#70809a]">
-                    {appointment.departmentName}
-                  </span>
-                </td>
-                <td className="px-5 py-4 text-sm font-semibold text-[#102040]">
-                  {appointment.date}
-                  <span className="mt-1 block text-xs text-[#70809a]">
-                    {appointment.startTime} - {appointment.endTime}
-                  </span>
-                </td>
-                <td className="px-5 py-4">
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-                      statusClassNames[appointment.status]
-                    }`}
-                  >
-                    {statusLabel(appointment.status)}
-                  </span>
-                </td>
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-2">
-                    {ACTION_BUTTONS.map((action) => (
-                      <button
-                        key={action.status}
-                        type="button"
-                        title={action.label}
-                        aria-label={`${appointment.patientName} - ${action.label}`}
-                        disabled={updatingId === appointment.id}
-                        onClick={() =>
-                          void updateStatus(appointment.id, action.status)
-                        }
-                        className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border text-xl font-bold transition disabled:cursor-not-allowed disabled:border-[#d7e0ef] disabled:bg-[#f5f8fe] disabled:text-[#9aa7ba] ${action.className}`}
-                      >
-                        <span aria-hidden="true">{action.symbol}</span>
-                      </button>
-                    ))}
-                  </div>
-                </td>
+      <div className="rounded-3xl border border-[#cbd8ea] bg-white shadow-sm">
+        {error ? (
+          <div className="border-b border-red-100 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="overflow-x-auto">
+          <table
+            className={`w-full ${tableMinWidth(
+              role
+            )} border-collapse text-left`}
+          >
+            <thead>
+              <tr className="border-b border-[#d7e0ef] text-xs font-bold uppercase text-[#70809a]">
+                <th className="px-5 py-4">Hasta</th>
+                {role === 'SECRETARY' ? (
+                  <th className="px-5 py-4">TC Kimlik</th>
+                ) : null}
+                {role === 'DOCTOR' ? (
+                  <th className="px-5 py-4">Doğum Tarihi</th>
+                ) : (
+                  <th className="px-5 py-4">Telefon</th>
+                )}
+                {role === 'ADMIN' ? (
+                  <th className="px-5 py-4">Hastane</th>
+                ) : null}
+                {role !== 'DOCTOR' ? (
+                  <th className="px-5 py-4">Birim</th>
+                ) : null}
+                {role !== 'DOCTOR' ? (
+                  <th className="px-5 py-4">Doktor</th>
+                ) : null}
+                <th className="px-5 py-4">Tarih/Saat</th>
+                <th className="px-5 py-4">Durum</th>
+                {role === 'SECRETARY' ? (
+                  <th className="px-5 py-4">Onay Durumu</th>
+                ) : null}
+                <th className="px-5 py-4">İşlem</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {visibleRows.length > 0 ? (
+                visibleRows.map((appointment) => (
+                  <tr
+                    key={appointment.id}
+                    className="border-b border-[#edf2f8] last:border-b-0"
+                  >
+                    <td className="px-5 py-4 text-sm font-bold text-[#102040]">
+                      {appointment.patientName}
+                    </td>
+                    {role === 'SECRETARY' ? (
+                      <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
+                        {appointment.patientTckn}
+                      </td>
+                    ) : null}
+                    <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
+                      {role === 'DOCTOR'
+                        ? appointment.patientBirthDate
+                        : appointment.patientPhone}
+                    </td>
+                    {role === 'ADMIN' ? (
+                      <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
+                        {appointment.hospitalName}
+                      </td>
+                    ) : null}
+                    {role !== 'DOCTOR' ? (
+                      <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
+                        {appointment.departmentName}
+                        {role === 'SECRETARY' ? (
+                          <span className="mt-1 block text-xs text-[#70809a]">
+                            {appointment.hospitalName}
+                          </span>
+                        ) : null}
+                      </td>
+                    ) : null}
+                    {role !== 'DOCTOR' ? (
+                      <td className="px-5 py-4 text-sm font-semibold text-[#102040]">
+                        {appointment.doctorName}
+                      </td>
+                    ) : null}
+                    <td className="px-5 py-4 text-sm font-semibold text-[#102040]">
+                      {appointment.date}
+                      <span className="mt-1 block text-xs text-[#70809a]">
+                        {appointment.startTime} - {appointment.endTime}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                          statusClassNames[appointment.status]
+                        }`}
+                      >
+                        {statusLabel(appointment.status)}
+                      </span>
+                    </td>
+                    {role === 'SECRETARY' ? (
+                      <td className="px-5 py-4">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${confirmationClassName(
+                            appointment.isConfirmed
+                          )}`}
+                        >
+                          {appointment.isConfirmed ? 'Onaylandı' : 'Bekliyor'}
+                        </span>
+                      </td>
+                    ) : null}
+                    <td className="px-5 py-4">
+                      {role === 'ADMIN' ? (
+                        <div className="flex items-center gap-2">
+                          {ACTION_BUTTONS.map((action) => (
+                            <button
+                              key={action.status}
+                              type="button"
+                              title={action.label}
+                              aria-label={`${appointment.patientName} - ${action.label}`}
+                              disabled={updatingId === appointment.id}
+                              onClick={() =>
+                                void updateStatus(
+                                  appointment.id,
+                                  action.status
+                                )
+                              }
+                              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border text-xl font-bold transition disabled:cursor-not-allowed disabled:border-[#d7e0ef] disabled:bg-[#f5f8fe] disabled:text-[#9aa7ba] ${action.className}`}
+                            >
+                              <span aria-hidden="true">{action.symbol}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {role === 'SECRETARY' && !appointment.isConfirmed ? (
+                        <button
+                          type="button"
+                          disabled={updatingId === appointment.id}
+                          onClick={() =>
+                            void confirmAppointment(appointment.id)
+                          }
+                          className="h-10 rounded-xl border border-emerald-200 px-4 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-[#d7e0ef] disabled:bg-[#f5f8fe] disabled:text-[#9aa7ba]"
+                        >
+                          Onayla
+                        </button>
+                      ) : null}
+
+                      {role === 'SECRETARY' && appointment.isConfirmed ? (
+                        <span className="text-sm font-semibold text-[#70809a]">
+                          -
+                        </span>
+                      ) : null}
+
+                      {role === 'DOCTOR' ? (
+                        <Link
+                          href={`/admin/appointments/${appointment.id}`}
+                          className="inline-flex h-10 items-center justify-center rounded-xl border border-[#cbd8ea] px-4 text-sm font-bold text-[#30476f] transition hover:bg-[#f5f8fe]"
+                        >
+                          Görüntüle
+                        </Link>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={columnCount(role)}
+                    className="px-5 py-6 text-sm font-semibold text-[#52617a]"
+                  >
+                    Kayıtlı randevu bulunamadı.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   )

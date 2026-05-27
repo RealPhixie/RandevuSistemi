@@ -3,7 +3,12 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 
-import { addDaysToDateInput, getLocalDateInputValue } from '@/lib/booking-time'
+import {
+  addDaysToDateInput,
+  getLocalDateInputValue,
+  getLocalDateTimeParts,
+  isBookableSlot,
+} from '@/lib/booking-time'
 import type { SlotOption } from '@/types'
 
 interface SlotPickerProps {
@@ -29,6 +34,15 @@ export function SlotPicker({
   const [slots, setSlots] = useState<SlotOption[]>([])
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [localNow, setLocalNow] = useState(() => getLocalDateTimeParts())
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setLocalNow(getLocalDateTimeParts())
+    }, 30000)
+
+    return () => window.clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -87,6 +101,14 @@ export function SlotPicker({
     return () => controller.abort()
   }, [doctorId, maxDate, selectedDate, today])
 
+  const bookableSlots = useMemo(
+    () =>
+      slots.filter((slot) =>
+        isBookableSlot(selectedDate, slot.startTime, localNow)
+      ),
+    [localNow, selectedDate, slots]
+  )
+
   return (
     <section className="mt-8 rounded-3xl border border-[#cbd8ea] bg-white p-5 shadow-sm sm:p-7">
       <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
@@ -104,7 +126,7 @@ export function SlotPicker({
           />
         </label>
         <span className="flex h-14 items-center rounded-2xl bg-[#f5f8fe] px-5 text-sm font-semibold text-[#52617a]">
-          {isLoading ? 'Saatler yükleniyor' : `${slots.length} uygun saat`}
+          {isLoading ? 'Saatler yükleniyor' : `${bookableSlots.length} uygun saat`}
         </span>
       </div>
 
@@ -126,15 +148,15 @@ export function SlotPicker({
           </div>
         ) : null}
 
-        {!error && !isLoading && slots.length === 0 ? (
+        {!error && !isLoading && bookableSlots.length === 0 ? (
           <div className="rounded-2xl bg-[#f5f8fe] px-5 py-6 text-sm font-medium text-[#52617a]">
             Seçilen tarihte uygun randevu saati bulunamadı.
           </div>
         ) : null}
 
-        {!error && !isLoading && slots.length > 0 ? (
+        {!error && !isLoading && bookableSlots.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {slots.map((slot) => (
+            {bookableSlots.map((slot) => (
               <Link
                 key={slot.id}
                 href={`/book/slot/${slot.id}`}

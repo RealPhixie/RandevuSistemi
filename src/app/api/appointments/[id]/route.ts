@@ -106,6 +106,7 @@ export async function PATCH(
     const updatedAppointment = await prisma.appointment.update({
       where: { id },
       data: {
+        status: 'COMPLETED',
         isConfirmed: true,
         confirmedAt: new Date(),
         confirmedById: user.id,

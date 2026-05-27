@@ -14,6 +14,8 @@ import {
   updateDoctorSlotAvailability,
 } from '@/lib/working-hours'
 
+export const dynamic = 'force-dynamic'
+
 interface SlotAvailabilityRequestBody {
   doctorId?: unknown
   date?: unknown
