@@ -108,6 +108,18 @@ export function SlotPicker({
     [localNow, selectedDate, slots]
   )
 
+  const canGoPreviousDay = selectedDate > today
+  const canGoNextDay = selectedDate < maxDate
+
+  function moveSelectedDate(days: number) {
+    const nextDate = addDaysToDateInput(selectedDate, days)
+    if (!nextDate) return
+
+    setSelectedDate(
+      nextDate < today ? today : nextDate > maxDate ? maxDate : nextDate
+    )
+  }
+
   return (
     <section className="mt-8 rounded-3xl border border-[#cbd8ea] bg-white p-5 shadow-sm sm:p-7">
       <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
@@ -124,9 +136,35 @@ export function SlotPicker({
             className="h-14 w-full rounded-2xl border border-[#cbd8ea] px-4 text-lg font-semibold text-[#102040] outline-none transition focus:border-red-500"
           />
         </label>
-        <span className="flex h-14 items-center rounded-2xl bg-[#f5f8fe] px-5 text-sm font-semibold text-[#52617a]">
-          {isLoading ? 'Saatler yükleniyor' : `${bookableSlots.length} uygun saat`}
-        </span>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={!canGoPreviousDay}
+              onClick={() => moveSelectedDate(-1)}
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-[#cbd8ea] bg-white px-4 text-sm font-bold text-[#30476f] transition hover:border-red-500 hover:text-red-600 disabled:cursor-not-allowed disabled:bg-[#eef3fb] disabled:text-[#9aa7ba] disabled:hover:border-[#cbd8ea]"
+              aria-label="Önceki güne geç"
+            >
+              <span aria-hidden="true">←</span>
+              <span>Önceki Gün</span>
+            </button>
+            <button
+              type="button"
+              disabled={!canGoNextDay}
+              onClick={() => moveSelectedDate(1)}
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-[#cbd8ea] bg-white px-4 text-sm font-bold text-[#30476f] transition hover:border-red-500 hover:text-red-600 disabled:cursor-not-allowed disabled:bg-[#eef3fb] disabled:text-[#9aa7ba] disabled:hover:border-[#cbd8ea]"
+              aria-label="Sonraki güne geç"
+            >
+              <span>Sonraki Gün</span>
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+          <span className="flex h-14 items-center justify-center rounded-2xl bg-[#f5f8fe] px-5 text-sm font-semibold text-[#52617a]">
+            {isLoading
+              ? 'Saatler yükleniyor'
+              : `${bookableSlots.length} uygun saat`}
+          </span>
+        </div>
       </div>
 
       <div className="mt-6" aria-live="polite">
