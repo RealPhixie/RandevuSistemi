@@ -5,6 +5,7 @@ import {
   BookingPageShell,
 } from '@/components/booking/BookingPageShell'
 import { DepartmentCard } from '@/components/booking/DepartmentCard'
+import { resolveDepartmentIcon } from '@/lib/medical-departments'
 import { prisma } from '@/lib/prisma'
 import type { DepartmentOption } from '@/types'
 
@@ -45,7 +46,7 @@ export default async function DepartmentSelectionPage({
       hospitalId: hospital.id,
       hospitalName: hospital.name,
       name: department.name,
-      icon: department.icon,
+      icon: resolveDepartmentIcon(department.name, department.icon),
       doctorCount: department._count.panelUsers,
     })
   )

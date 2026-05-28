@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 
+import { DepartmentIcon } from '@/components/DepartmentIcon'
 import { DepartmentCard } from '@/components/booking/DepartmentCard'
 import { HospitalCard } from '@/components/booking/HospitalCard'
 import { slugifyPathSegment } from '@/lib/slugs'
@@ -29,6 +30,8 @@ interface SearchResult {
   label: string
   detail: string
   href: string
+  icon?: string
+  iconName?: string
 }
 
 interface OtpSendResponse {
@@ -96,6 +99,8 @@ export function HomeAppointmentPanel({
         href: `/book/${department.hospitalId}/${slugifyPathSegment(
           department.name
         )}`,
+        icon: department.icon,
+        iconName: department.name,
       }))
 
     const doctorResults: SearchResult[] = doctors
@@ -248,12 +253,31 @@ function AppointmentTab({
                     href={result.href}
                     className="flex items-center justify-between rounded-xl px-4 py-3 transition hover:bg-[#f1f6ff]"
                   >
-                    <span>
-                      <span className="block text-base font-semibold text-[#0d1b3d]">
-                        {result.label}
-                      </span>
-                      <span className="mt-1 block text-sm text-[#52617a]">
-                        {result.detail}
+                    <span className="flex min-w-0 items-center gap-3">
+                      {result.type === 'doctor' ? (
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#fff1f1]">
+                          <Image
+                            src="/doktor.png"
+                            alt=""
+                            width={36}
+                            height={36}
+                            className="h-7 w-7 object-contain"
+                          />
+                        </span>
+                      ) : result.icon && result.iconName ? (
+                        <DepartmentIcon
+                          icon={result.icon}
+                          name={result.iconName}
+                          size="sm"
+                        />
+                      ) : null}
+                      <span className="min-w-0">
+                        <span className="block truncate text-base font-semibold text-[#0d1b3d]">
+                          {result.label}
+                        </span>
+                        <span className="mt-1 block truncate text-sm text-[#52617a]">
+                          {result.detail}
+                        </span>
                       </span>
                     </span>
                     <span className="rounded-full bg-[#edf4ff] px-3 py-1 text-sm font-semibold text-[#30476f]">

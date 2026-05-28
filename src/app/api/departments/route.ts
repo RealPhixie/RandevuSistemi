@@ -2,13 +2,13 @@ import {
   AdminMutationError,
   createDepartment,
 } from '@/lib/admin-management'
+import { resolveDepartmentIcon } from '@/lib/medical-departments'
 import { prisma } from '@/lib/prisma'
 import { requireRole } from '@/lib/require-role'
 
 interface DepartmentCreateRequestBody {
   hospitalId?: unknown
-  name?: unknown
-  icon?: unknown
+  departmentKey?: unknown
 }
 
 export async function GET(request: Request) {
@@ -45,6 +45,7 @@ export async function GET(request: Request) {
 
     const data = departments.map((department) => ({
       ...department,
+      icon: resolveDepartmentIcon(department.name, department.icon),
       _count: { doctors: department._count.panelUsers },
     }))
 

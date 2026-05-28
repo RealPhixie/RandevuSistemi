@@ -1,4 +1,5 @@
 import { HomeAppointmentPanel } from '@/components/booking/HomeAppointmentPanel'
+import { resolveDepartmentIcon } from '@/lib/medical-departments'
 import { prisma } from '@/lib/prisma'
 import type {
   DepartmentOption,
@@ -83,7 +84,7 @@ export default async function Home() {
       hospitalId: department.hospital.id,
       hospitalName: department.hospital.name,
       name: department.name,
-      icon: department.icon,
+      icon: resolveDepartmentIcon(department.name, department.icon),
       doctorCount: department._count.panelUsers,
     })
   )

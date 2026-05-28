@@ -1,10 +1,15 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
+import { DepartmentIcon } from '@/components/DepartmentIcon'
 import {
   createDepartment,
   setDepartmentActive,
 } from '@/lib/admin-management'
+import {
+  MEDICAL_DEPARTMENT_CATALOG,
+  resolveDepartmentIcon,
+} from '@/lib/medical-departments'
 import { prisma } from '@/lib/prisma'
 import { requireRole } from '@/lib/require-role'
 
@@ -88,7 +93,7 @@ export default async function AdminDepartmentsPage({
 
       <form
         action={createDepartmentAction}
-        className="grid gap-4 rounded-3xl border border-[#cbd8ea] bg-white p-5 shadow-sm lg:grid-cols-[1fr_1fr_120px_auto] lg:items-end"
+        className="grid gap-4 rounded-3xl border border-[#cbd8ea] bg-white p-5 shadow-sm lg:grid-cols-[1fr_1fr_auto] lg:items-end"
       >
         <label className="block">
           <span className="mb-2 block text-sm font-semibold text-[#0d1b3d]">
@@ -103,6 +108,7 @@ export default async function AdminDepartmentsPage({
             {hospitals.map((hospital) => (
               <option key={hospital.id} value={hospital.id}>
                 {hospital.name}
+                {hospital.isActive ? '' : ' (Pasif)'}
               </option>
             ))}
           </select>
@@ -112,25 +118,18 @@ export default async function AdminDepartmentsPage({
           <span className="mb-2 block text-sm font-semibold text-[#0d1b3d]">
             Tıbbi Birim
           </span>
-          <input
-            name="name"
+          <select
+            name="departmentKey"
             required
-            minLength={2}
-            maxLength={120}
-            className="h-11 w-full rounded-2xl border border-[#cbd8ea] px-4 text-sm font-semibold text-[#102040] outline-none transition focus:border-red-500"
-          />
-        </label>
-
-        <label className="block">
-          <span className="mb-2 block text-sm font-semibold text-[#0d1b3d]">
-            Simge
-          </span>
-          <input
-            name="icon"
-            required
-            maxLength={8}
-            className="h-11 w-full rounded-2xl border border-[#cbd8ea] px-4 text-sm font-semibold text-[#102040] outline-none transition focus:border-red-500"
-          />
+            className="h-11 w-full rounded-2xl border border-[#cbd8ea] bg-white px-4 text-sm font-semibold text-[#102040] outline-none transition focus:border-red-500"
+          >
+            <option value="">Seçin</option>
+            {MEDICAL_DEPARTMENT_CATALOG.map((department) => (
+              <option key={department.key} value={department.key}>
+                {department.name}
+              </option>
+            ))}
+          </select>
         </label>
 
         <button
@@ -166,8 +165,17 @@ export default async function AdminDepartmentsPage({
                   className="border-b border-[#edf2f8] last:border-b-0"
                 >
                   <td className="px-5 py-4 text-sm font-bold text-[#102040]">
-                    <span className="mr-2">{department.icon}</span>
-                    {department.name}
+                    <span className="flex items-center gap-3">
+                      <DepartmentIcon
+                        icon={resolveDepartmentIcon(
+                          department.name,
+                          department.icon
+                        )}
+                        name={department.name}
+                        size="sm"
+                      />
+                      {department.name}
+                    </span>
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
                     {department.hospital.name}

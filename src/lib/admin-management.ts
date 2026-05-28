@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
+import { findMedicalDepartmentByKey } from '@/lib/medical-departments'
 import { prisma } from '@/lib/prisma'
 
 export class AdminMutationError extends Error {
@@ -135,8 +136,14 @@ export async function setHospitalActive(input: Record<string, unknown>) {
 
 export async function createDepartment(input: Record<string, unknown>) {
   const hospitalId = requireId(input.hospitalId, 'Hastane')
-  const name = requireText(input.name, 'Tıbbi birim adı', 2, 120)
-  const icon = requireText(input.icon, 'Simge', 1, 8)
+  const selectedDepartment = findMedicalDepartmentByKey(input.departmentKey)
+
+  if (!selectedDepartment) {
+    throw new AdminMutationError('Tıbbi birim seçimi geçersiz')
+  }
+
+  const name = selectedDepartment.name
+  const icon = selectedDepartment.key
 
   const hospital = await prisma.hospital.findUnique({
     where: { id: hospitalId },
@@ -148,6 +155,25 @@ export async function createDepartment(input: Record<string, unknown>) {
   }
 
   try {
+    const existingDepartment = await prisma.department.findFirst({
+      where: { hospitalId, name },
+      select: { id: true },
+    })
+
+    if (existingDepartment) {
+      return await prisma.department.update({
+        where: { id: existingDepartment.id },
+        data: { icon, isActive: true },
+        select: {
+          id: true,
+          hospitalId: true,
+          name: true,
+          icon: true,
+          isActive: true,
+        },
+      })
+    }
+
     return await prisma.department.create({
       data: { hospitalId, name, icon },
       select: { id: true, hospitalId: true, name: true, icon: true, isActive: true },
