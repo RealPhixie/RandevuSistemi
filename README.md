@@ -42,9 +42,14 @@ DIRECT_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
 NEXTAUTH_SECRET="your-secret-here"
 NEXTAUTH_URL="http://localhost:3000"
 NODE_ENV="development"
+SHOW_OTP_ON_SCREEN="false"
 ```
 
 Neon için `DATABASE_URL` pooled, `DIRECT_URL` direct bağlantı adresi olmalıdır.
+
+Vercel test ortamında OTP kodunu ekranda göstermek için Environment Variables
+alanına `SHOW_OTP_ON_SCREEN=true` ekleyin. Canlı test bitince bu değeri kaldırın
+veya `false` yapın.
 
 ## Veritabanı
 

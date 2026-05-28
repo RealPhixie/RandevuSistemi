@@ -57,7 +57,13 @@ export function Sidebar({ name, role, username }: SidebarProps) {
       <div className="mt-auto border-t border-[#d7e0ef] pt-5">
         <p className="text-sm font-bold text-[#0d1b3d]">{name}</p>
         <p className="mt-1 text-xs font-semibold text-[#70809a]">{username}</p>
-        <form action={handleSignOut} className="mt-4">
+        <Link
+          href="/admin/password"
+          className="mt-4 flex h-11 items-center justify-center rounded-2xl border border-[#cbd8ea] px-4 text-sm font-bold text-[#30476f] transition hover:bg-[#f5f8fe]"
+        >
+          Şifre Değiştir
+        </Link>
+        <form action={handleSignOut} className="mt-3">
           <button
             type="submit"
             className="h-11 w-full rounded-2xl border border-red-200 px-4 text-sm font-bold text-red-700 transition hover:bg-red-50"
