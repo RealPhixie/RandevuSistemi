@@ -15,19 +15,19 @@ enum PanelUserRole {
 }
 
 model PanelUser {
-  id                    String          @id @default(cuid())
-  username              String          @unique
+  id                    String        @id @default(cuid())
+  username              String        @unique
   password              String
   name                  String
   title                 String?
   role                  PanelUserRole
   departmentId          String?
-  department            Department?     @relation(fields: [departmentId], references: [id])
-  isActive              Boolean         @default(true)
-  createdAt             DateTime        @default(now())
+  department            Department?   @relation(fields: [departmentId], references: [id])
+  isActive              Boolean       @default(true)
+  createdAt             DateTime      @default(now())
   timeSlots             TimeSlot[]
   doctorNotes           DoctorNote[]
-  confirmedAppointments Appointment[]   @relation("ConfirmedBy")
+  confirmedAppointments Appointment[] @relation("ConfirmedBy")
 }
 
 model Hospital {
@@ -54,16 +54,16 @@ model Department {
 }
 
 model TimeSlot {
-  id          String       @id @default(cuid())
-  doctorId    String
-  doctor      PanelUser    @relation(fields: [doctorId], references: [id])
-  date        DateTime
-  startTime   String
-  endTime     String
-  isBooked    Boolean      @default(false)
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  appointment Appointment?
+  id           String        @id @default(cuid())
+  doctorId     String
+  doctor       PanelUser     @relation(fields: [doctorId], references: [id])
+  date         DateTime
+  startTime    String
+  endTime      String
+  isBooked     Boolean       @default(false)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  appointments Appointment[]
 
   @@unique([doctorId, date, startTime])
   @@index([doctorId, date, isActive])
@@ -96,7 +96,7 @@ model Appointment {
   id            String            @id @default(cuid())
   patientId     String
   patient       Patient           @relation(fields: [patientId], references: [id])
-  timeSlotId    String            @unique
+  timeSlotId    String
   timeSlot      TimeSlot          @relation(fields: [timeSlotId], references: [id])
   status        AppointmentStatus @default(SCHEDULED)
   isConfirmed   Boolean           @default(false)
@@ -106,6 +106,8 @@ model Appointment {
   notes         String?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
+
+  @@index([timeSlotId])
 }
 
 enum AppointmentStatus {

@@ -217,6 +217,11 @@ export async function POST(request: Request) {
         date: true,
         startTime: true,
         isBooked: true,
+        appointments: {
+          where: { status: 'SCHEDULED' },
+          select: { id: true },
+          take: 1,
+        },
       },
     })
 
@@ -227,7 +232,7 @@ export async function POST(request: Request) {
       )
     }
 
-    if (slot.isBooked) {
+    if (slot.isBooked || slot.appointments.length > 0) {
       return Response.json(
         { success: false, error: 'Bu randevu saati dolu' },
         { status: 409 }
@@ -245,7 +250,12 @@ export async function POST(request: Request) {
 
     const appointment = await prisma.$transaction(async (tx) => {
       const updatedSlot = await tx.timeSlot.updateMany({
-        where: { id: timeSlotId, isBooked: false, isActive: true },
+        where: {
+          id: timeSlotId,
+          isBooked: false,
+          isActive: true,
+          appointments: { none: { status: 'SCHEDULED' } },
+        },
         data: { isBooked: true },
       })
 

@@ -57,6 +57,11 @@ interface PatientAppointmentsResponse {
   error?: string
 }
 
+interface AppointmentCancelResponse {
+  success: boolean
+  error?: string
+}
+
 function normalizeSearch(value: string) {
   return value.toLocaleLowerCase('tr-TR').trim()
 }
@@ -359,6 +364,7 @@ function AppointmentTab({
 function MyAppointmentsTab() {
   const [phone, setPhone] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
+  const [phoneVerificationId, setPhoneVerificationId] = useState('')
   const [devCode, setDevCode] = useState('')
   const [error, setError] = useState('')
   const [appointments, setAppointments] =
@@ -367,6 +373,7 @@ function MyAppointmentsTab() {
   const [isVerifyingCode, setIsVerifyingCode] = useState(false)
   const [isCodeSent, setIsCodeSent] = useState(false)
   const [isVerified, setIsVerified] = useState(false)
+  const [cancellingAppointmentId, setCancellingAppointmentId] = useState('')
 
   const normalizedPhone = phone.replace(/\s/g, '')
   const canRequestCode = /^05\d{9}$/.test(normalizedPhone) && !isSendingCode
@@ -375,6 +382,7 @@ function MyAppointmentsTab() {
   function handlePhoneChange(value: string) {
     setPhone(value)
     setVerificationCode('')
+    setPhoneVerificationId('')
     setDevCode('')
     setError('')
     setAppointments(undefined)
@@ -389,6 +397,7 @@ function MyAppointmentsTab() {
     setIsSendingCode(true)
     setError('')
     setDevCode('')
+    setPhoneVerificationId('')
     setAppointments(undefined)
 
     try {
@@ -416,6 +425,28 @@ function MyAppointmentsTab() {
     }
   }
 
+  async function loadPatientAppointments(verificationId: string) {
+    const params = new URLSearchParams({
+      phone: normalizedPhone,
+      phoneVerificationId: verificationId,
+    })
+    const appointmentsResponse = await fetch(
+      `/api/appointments?${params.toString()}`
+    )
+    const appointmentsPayload =
+      (await appointmentsResponse.json()) as PatientAppointmentsResponse
+
+    if (
+      !appointmentsResponse.ok ||
+      !appointmentsPayload.success ||
+      !appointmentsPayload.data
+    ) {
+      throw new Error(appointmentsPayload.error ?? 'Randevular yüklenemedi.')
+    }
+
+    return appointmentsPayload.data
+  }
+
   async function handleVerifyCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!canVerifyCode) return
@@ -440,31 +471,63 @@ function MyAppointmentsTab() {
         return
       }
 
-      const params = new URLSearchParams({
-        phone: normalizedPhone,
-        phoneVerificationId: verifyPayload.data.phoneVerificationId,
-      })
-      const appointmentsResponse = await fetch(
-        `/api/appointments?${params.toString()}`
+      const nextPhoneVerificationId = verifyPayload.data.phoneVerificationId
+      const nextAppointments = await loadPatientAppointments(
+        nextPhoneVerificationId
       )
-      const appointmentsPayload =
-        (await appointmentsResponse.json()) as PatientAppointmentsResponse
 
-      if (
-        !appointmentsResponse.ok ||
-        !appointmentsPayload.success ||
-        !appointmentsPayload.data
-      ) {
-        setError(appointmentsPayload.error ?? 'Randevular yüklenemedi.')
+      setPhoneVerificationId(nextPhoneVerificationId)
+      setAppointments(nextAppointments)
+      setIsVerified(true)
+    } catch (fetchError) {
+      setError(
+        fetchError instanceof Error
+          ? fetchError.message
+          : 'Telefon doğrulanamadı.'
+      )
+    } finally {
+      setIsVerifyingCode(false)
+    }
+  }
+
+  async function handleCancelAppointment(appointmentId: string) {
+    if (
+      !window.confirm('Randevunuzu iptal etmek istediğinizden emin misiniz?')
+    ) {
+      return
+    }
+
+    if (!phoneVerificationId) {
+      setError('Telefon doğrulaması geçersiz.')
+      return
+    }
+
+    setCancellingAppointmentId(appointmentId)
+    setError('')
+
+    try {
+      const response = await fetch(`/api/appointments/${appointmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CANCELLED',
+          phone: normalizedPhone,
+          phoneVerificationId,
+        }),
+      })
+      const payload = (await response.json()) as AppointmentCancelResponse
+
+      if (!response.ok || !payload.success) {
+        setError(payload.error ?? 'Randevu iptal edilemedi.')
         return
       }
 
-      setAppointments(appointmentsPayload.data)
-      setIsVerified(true)
+      const nextAppointments = await loadPatientAppointments(phoneVerificationId)
+      setAppointments(nextAppointments)
     } catch {
-      setError('Telefon doğrulanamadı.')
+      setError('Randevu iptal edilemedi.')
     } finally {
-      setIsVerifyingCode(false)
+      setCancellingAppointmentId('')
     }
   }
 
@@ -546,6 +609,8 @@ function MyAppointmentsTab() {
           <AppointmentSummary
             title="Güncel Randevular"
             appointments={appointments.current}
+            cancellingAppointmentId={cancellingAppointmentId}
+            onCancelAppointment={handleCancelAppointment}
           />
           <AppointmentSummary
             title="Geçmiş Randevular"
@@ -560,9 +625,13 @@ function MyAppointmentsTab() {
 function AppointmentSummary({
   title,
   appointments,
+  cancellingAppointmentId = '',
+  onCancelAppointment,
 }: {
   title: string
   appointments: PatientAppointmentOption[]
+  cancellingAppointmentId?: string
+  onCancelAppointment?: (appointmentId: string) => void
 }) {
   return (
     <section className="rounded-3xl border border-[#cbd8ea] bg-white p-6">
@@ -574,15 +643,33 @@ function AppointmentSummary({
               key={appointment.id}
               className="rounded-2xl bg-[#f5f8fe] px-5 py-4 text-sm text-[#30476f]"
             >
-              <p className="font-bold text-[#0d1b3d]">
-                {formatAppointmentDate(appointment.date)}, {appointment.startTime}
-              </p>
-              <p className="mt-1 font-medium">
-                {appointment.doctorTitle} {appointment.doctorName}
-              </p>
-              <p className="mt-1 text-[#52617a]">
-                {appointment.hospitalName} · {appointment.departmentName}
-              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-bold text-[#0d1b3d]">
+                    {formatAppointmentDate(appointment.date)},{' '}
+                    {appointment.startTime}
+                  </p>
+                  <p className="mt-1 font-medium">
+                    {appointment.doctorTitle} {appointment.doctorName}
+                  </p>
+                  <p className="mt-1 text-[#52617a]">
+                    {appointment.hospitalName} · {appointment.departmentName}
+                  </p>
+                </div>
+
+                {onCancelAppointment ? (
+                  <button
+                    type="button"
+                    disabled={cancellingAppointmentId === appointment.id}
+                    onClick={() => onCancelAppointment(appointment.id)}
+                    className="h-10 shrink-0 rounded-xl border border-red-200 px-4 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-red-50 disabled:text-red-300"
+                  >
+                    {cancellingAppointmentId === appointment.id
+                      ? 'İptal ediliyor'
+                      : 'İptal'}
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

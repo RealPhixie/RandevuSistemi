@@ -180,7 +180,10 @@ export default async function AdminWorkingHoursPage({
           },
           orderBy: { startTime: 'asc' },
           include: {
-            appointment: {
+            appointments: {
+              where: { status: { in: ['SCHEDULED', 'COMPLETED', 'NO_SHOW'] } },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
               select: {
                 id: true,
                 patient: {
@@ -347,66 +350,71 @@ export default async function AdminWorkingHoursPage({
             </thead>
             <tbody>
               {slots.length > 0 ? (
-                slots.map((slot) => (
-                  <tr
-                    key={slot.id}
-                    className="border-b border-[#edf2f8] last:border-b-0"
-                  >
-                    <td className="px-5 py-4 text-sm font-bold text-[#102040]">
-                      {slot.startTime} - {slot.endTime}
-                    </td>
-                    <td className="px-5 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-                          slot.isBooked
-                            ? 'bg-amber-50 text-amber-700'
-                            : slot.isActive
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        {getSlotStatus(slot)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
-                      {slot.appointment
-                        ? `${slot.appointment.patient.firstName} ${slot.appointment.patient.lastName}`
-                        : '-'}
-                    </td>
-                    <td className="px-5 py-4">
-                      {slot.isBooked ? (
-                        <span className="text-sm font-semibold text-[#70809a]">
-                          Dolu
+                slots.map((slot) => {
+                  const bookedAppointment = slot.appointments[0]
+                  const isBooked = slot.isBooked || Boolean(bookedAppointment)
+
+                  return (
+                    <tr
+                      key={slot.id}
+                      className="border-b border-[#edf2f8] last:border-b-0"
+                    >
+                      <td className="px-5 py-4 text-sm font-bold text-[#102040]">
+                        {slot.startTime} - {slot.endTime}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                            isBooked
+                              ? 'bg-amber-50 text-amber-700'
+                              : slot.isActive
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {getSlotStatus({ isBooked, isActive: slot.isActive })}
                         </span>
-                      ) : (
-                        <form action={updateSlotStatusAction}>
-                          <input type="hidden" name="id" value={slot.id} />
-                          <input
-                            type="hidden"
-                            name="doctorId"
-                            value={selectedDoctorId}
-                          />
-                          <input
-                            type="hidden"
-                            name="date"
-                            value={selectedDate}
-                          />
-                          <input
-                            type="hidden"
-                            name="isActive"
-                            value={String(!slot.isActive)}
-                          />
-                          <button
-                            type="submit"
-                            className="h-10 rounded-xl border border-[#cbd8ea] px-4 text-sm font-bold text-[#30476f] transition hover:bg-[#f5f8fe]"
-                          >
-                            {slot.isActive ? 'Kapat' : 'Aktif Et'}
-                          </button>
-                        </form>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-5 py-4 text-sm font-semibold text-[#30476f]">
+                        {bookedAppointment
+                          ? `${bookedAppointment.patient.firstName} ${bookedAppointment.patient.lastName}`
+                          : '-'}
+                      </td>
+                      <td className="px-5 py-4">
+                        {isBooked ? (
+                          <span className="text-sm font-semibold text-[#70809a]">
+                            Dolu
+                          </span>
+                        ) : (
+                          <form action={updateSlotStatusAction}>
+                            <input type="hidden" name="id" value={slot.id} />
+                            <input
+                              type="hidden"
+                              name="doctorId"
+                              value={selectedDoctorId}
+                            />
+                            <input
+                              type="hidden"
+                              name="date"
+                              value={selectedDate}
+                            />
+                            <input
+                              type="hidden"
+                              name="isActive"
+                              value={String(!slot.isActive)}
+                            />
+                            <button
+                              type="submit"
+                              className="h-10 rounded-xl border border-[#cbd8ea] px-4 text-sm font-bold text-[#30476f] transition hover:bg-[#f5f8fe]"
+                            >
+                              {slot.isActive ? 'Kapat' : 'Aktif Et'}
+                            </button>
+                          </form>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
               ) : (
                 <tr>
                   <td

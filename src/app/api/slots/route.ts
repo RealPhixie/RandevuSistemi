@@ -80,6 +80,7 @@ export async function GET(request: Request) {
         doctorId,
         isBooked: false,
         isActive: true,
+        appointments: { none: { status: 'SCHEDULED' } },
         date: {
           gte: range.start,
           lt: range.end,

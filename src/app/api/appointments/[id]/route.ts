@@ -3,14 +3,29 @@ import type { AppointmentStatus } from '@prisma/client'
 import { markExpiredScheduledAppointmentsNoShow } from '@/lib/appointment-auto-status'
 import { isAppointmentStatusValue } from '@/lib/appointment-status'
 import { auth } from '@/lib/auth'
-import { getLocalDateInputValue } from '@/lib/booking-time'
+import {
+  getLocalDateInputValue,
+  getLocalDateTimeParts,
+  isPastSlot,
+} from '@/lib/booking-time'
+import {
+  isValidTurkishMobilePhone,
+  normalizePhone,
+} from '@/lib/patient-validation'
+import {
+  findActivePhoneVerification,
+  normalizeVerificationId,
+} from '@/lib/phone-verification'
 import { prisma } from '@/lib/prisma'
 import { requireRole } from '@/lib/require-role'
 
 type AppointmentAction = 'COMPLETED' | 'CANCELLED' | 'CONFIRM'
+type AppointmentStatusAction = Exclude<AppointmentAction, 'CONFIRM'>
 
 interface AppointmentPatchRequestBody {
   action?: unknown
+  phone?: unknown
+  phoneVerificationId?: unknown
   status?: unknown
 }
 
@@ -42,6 +57,56 @@ function canConfirmAppointment(status: AppointmentStatus, date: Date) {
   )
 }
 
+function hasPatientCancellationCredentials(body: AppointmentPatchRequestBody) {
+  return (
+    typeof body.phone === 'string' ||
+    typeof body.phoneVerificationId === 'string'
+  )
+}
+
+function canCancelFutureScheduledAppointment(
+  status: AppointmentStatus,
+  date: Date,
+  startTime: string
+) {
+  return (
+    status === 'SCHEDULED' &&
+    !isPastSlot(getLocalDateInputValue(date), startTime, getLocalDateTimeParts())
+  )
+}
+
+async function updateAppointmentStatus(
+  id: string,
+  status: AppointmentStatusAction,
+  reopenSlot: boolean
+) {
+  if (status !== 'CANCELLED' || !reopenSlot) {
+    return prisma.appointment.update({
+      where: { id },
+      data: { status },
+      select: { id: true, status: true },
+    })
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updatedAppointment = await tx.appointment.update({
+      where: { id },
+      data: { status },
+      select: { id: true, status: true, timeSlotId: true },
+    })
+
+    await tx.timeSlot.update({
+      where: { id: updatedAppointment.timeSlotId },
+      data: { isBooked: false },
+    })
+
+    return {
+      id: updatedAppointment.id,
+      status: updatedAppointment.status,
+    }
+  })
+}
+
 export async function PATCH(
   request: Request,
   context: RouteContext<'/api/appointments/[id]'>
@@ -71,7 +136,12 @@ export async function PATCH(
 
   const appointment = await prisma.appointment.findUnique({
     where: { id },
-    select: { id: true, status: true, timeSlot: { select: { date: true } } },
+    select: {
+      id: true,
+      status: true,
+      patient: { select: { phone: true } },
+      timeSlot: { select: { date: true, startTime: true } },
+    },
   })
 
   if (!appointment) {
@@ -127,6 +197,54 @@ export async function PATCH(
     return Response.json({ success: true, data: updatedAppointment })
   }
 
+  if (action === 'CANCELLED' && hasPatientCancellationCredentials(body)) {
+    const phone = normalizePhone(body.phone)
+    const phoneVerificationId = normalizeVerificationId(body.phoneVerificationId)
+
+    if (!isValidTurkishMobilePhone(phone)) {
+      return Response.json(
+        { success: false, error: 'Telefon numarası geçersiz' },
+        { status: 400 }
+      )
+    }
+
+    const verification = await findActivePhoneVerification(
+      phone,
+      phoneVerificationId
+    )
+
+    if (!verification) {
+      return Response.json(
+        { success: false, error: 'Telefon doğrulaması geçersiz' },
+        { status: 401 }
+      )
+    }
+
+    if (appointment.patient.phone !== phone) {
+      return Response.json(
+        { success: false, error: 'Bu randevu bu telefona ait değil' },
+        { status: 403 }
+      )
+    }
+
+    if (
+      !canCancelFutureScheduledAppointment(
+        appointment.status,
+        appointment.timeSlot.date,
+        appointment.timeSlot.startTime
+      )
+    ) {
+      return Response.json(
+        { success: false, error: 'Bu randevu iptal edilemez' },
+        { status: 400 }
+      )
+    }
+
+    const updatedAppointment = await updateAppointmentStatus(id, 'CANCELLED', true)
+
+    return Response.json({ success: true, data: updatedAppointment })
+  }
+
   const user = await requireRole(['ADMIN'])
 
   if (!user) {
@@ -136,11 +254,14 @@ export async function PATCH(
     )
   }
 
-  const updatedAppointment = await prisma.appointment.update({
-    where: { id },
-    data: { status: action },
-    select: { id: true, status: true },
-  })
+  const reopenSlot =
+    action === 'CANCELLED' &&
+    canCancelFutureScheduledAppointment(
+      appointment.status,
+      appointment.timeSlot.date,
+      appointment.timeSlot.startTime
+    )
+  const updatedAppointment = await updateAppointmentStatus(id, action, reopenSlot)
 
   return Response.json({ success: true, data: updatedAppointment })
 }
