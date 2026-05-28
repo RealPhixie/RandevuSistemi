@@ -1,7 +1,12 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { createDoctor, setDoctorActive } from '@/lib/admin-management'
+import { ConfirmSubmitButton } from '@/components/admin/ConfirmSubmitButton'
+import {
+  createDoctor,
+  deleteDoctor,
+  setDoctorActive,
+} from '@/lib/admin-management'
 import { prisma } from '@/lib/prisma'
 import { requireRole } from '@/lib/require-role'
 
@@ -45,6 +50,21 @@ async function updateDoctorStatusAction(formData: FormData) {
     await setDoctorActive(Object.fromEntries(formData))
   } catch {
     redirect('/admin/doctors?error=status')
+  }
+
+  revalidatePath('/admin/doctors')
+  redirect('/admin/doctors')
+}
+
+async function deleteDoctorAction(formData: FormData) {
+  'use server'
+
+  await requireAdmin()
+
+  try {
+    await deleteDoctor(Object.fromEntries(formData))
+  } catch {
+    redirect('/admin/doctors?error=delete')
   }
 
   revalidatePath('/admin/doctors')
@@ -181,7 +201,7 @@ export default async function AdminDoctorsPage({
 
       <section className="rounded-3xl border border-[#cbd8ea] bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] border-collapse text-left">
+          <table className="w-full min-w-[960px] border-collapse text-left">
             <thead>
               <tr className="border-b border-[#d7e0ef] text-xs font-bold uppercase text-[#70809a]">
                 <th className="px-5 py-4">Doktor</th>
@@ -189,7 +209,7 @@ export default async function AdminDoctorsPage({
                 <th className="px-5 py-4">Hastane</th>
                 <th className="px-5 py-4">Birim</th>
                 <th className="px-5 py-4">Durum</th>
-                <th className="px-5 py-4">İşlem</th>
+                <th className="px-5 py-4 text-center">İşlem</th>
               </tr>
             </thead>
             <tbody>
@@ -222,20 +242,32 @@ export default async function AdminDoctorsPage({
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <form action={updateDoctorStatusAction}>
-                      <input type="hidden" name="id" value={doctor.id} />
-                      <input
-                        type="hidden"
-                        name="isActive"
-                        value={String(!doctor.isActive)}
-                      />
-                      <button
-                        type="submit"
-                        className="h-10 rounded-xl border border-[#cbd8ea] px-4 text-sm font-bold text-[#30476f] transition hover:bg-[#f5f8fe]"
-                      >
-                        {doctor.isActive ? 'Pasifleştir' : 'Aktifleştir'}
-                      </button>
-                    </form>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <form action={updateDoctorStatusAction}>
+                        <input type="hidden" name="id" value={doctor.id} />
+                        <input
+                          type="hidden"
+                          name="isActive"
+                          value={String(!doctor.isActive)}
+                        />
+                        <button
+                          type="submit"
+                          className="h-10 rounded-xl border border-[#cbd8ea] px-4 text-sm font-bold text-[#30476f] transition hover:bg-[#f5f8fe]"
+                        >
+                          {doctor.isActive ? 'Pasifleştir' : 'Aktifleştir'}
+                        </button>
+                      </form>
+
+                      <form action={deleteDoctorAction}>
+                        <input type="hidden" name="id" value={doctor.id} />
+                        <ConfirmSubmitButton
+                          message="Bu doktoru silmek istediğinize emin misiniz?"
+                          className="h-10 rounded-xl border border-red-200 px-4 text-sm font-bold text-red-700 transition hover:bg-red-50"
+                        >
+                          Sil
+                        </ConfirmSubmitButton>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}

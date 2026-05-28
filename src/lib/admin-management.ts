@@ -104,6 +104,39 @@ function mapPrismaError(error: unknown, duplicateMessage: string): never {
   throw error
 }
 
+async function deleteDoctorPanelUsers(
+  tx: Prisma.TransactionClient,
+  doctorIds: string[]
+) {
+  if (doctorIds.length === 0) return
+
+  const timeSlots = await tx.timeSlot.findMany({
+    where: { doctorId: { in: doctorIds } },
+    select: { id: true },
+  })
+  const timeSlotIds = timeSlots.map((timeSlot) => timeSlot.id)
+
+  if (timeSlotIds.length > 0) {
+    await tx.appointment.deleteMany({
+      where: { timeSlotId: { in: timeSlotIds } },
+    })
+  }
+
+  await tx.timeSlot.deleteMany({
+    where: { doctorId: { in: doctorIds } },
+  })
+  await tx.doctorNote.deleteMany({
+    where: { doctorId: { in: doctorIds } },
+  })
+  await tx.appointment.updateMany({
+    where: { confirmedById: { in: doctorIds } },
+    data: { confirmedById: null },
+  })
+  await tx.panelUser.deleteMany({
+    where: { id: { in: doctorIds }, role: 'DOCTOR' },
+  })
+}
+
 export async function createHospital(input: Record<string, unknown>) {
   const name = requireText(input.name, 'Hastane adı', 2, 120)
   const address = optionalText(input.address, 'Adres', 200)
@@ -128,6 +161,59 @@ export async function setHospitalActive(input: Record<string, unknown>) {
       where: { id },
       data: { isActive },
       select: { id: true, isActive: true },
+    })
+  } catch (error) {
+    mapPrismaError(error, 'Bu hastane zaten var')
+  }
+}
+
+export async function deleteHospital(input: Record<string, unknown>) {
+  const id = requireId(input.id, 'Hastane')
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const hospital = await tx.hospital.findUnique({
+        where: { id },
+        select: {
+          departments: {
+            select: {
+              id: true,
+              panelUsers: {
+                where: { role: 'DOCTOR' },
+                select: { id: true },
+              },
+            },
+          },
+        },
+      })
+
+      if (!hospital) {
+        throw new AdminMutationError('Hastane bulunamadı', 404)
+      }
+
+      const departmentIds = hospital.departments.map(
+        (department) => department.id
+      )
+      const doctorIds = hospital.departments.flatMap((department) =>
+        department.panelUsers.map((doctor) => doctor.id)
+      )
+
+      await deleteDoctorPanelUsers(tx, doctorIds)
+
+      if (departmentIds.length > 0) {
+        await tx.panelUser.updateMany({
+          where: { departmentId: { in: departmentIds } },
+          data: { departmentId: null },
+        })
+        await tx.department.deleteMany({
+          where: { id: { in: departmentIds } },
+        })
+      }
+
+      return await tx.hospital.delete({
+        where: { id },
+        select: { id: true },
+      })
     })
   } catch (error) {
     mapPrismaError(error, 'Bu hastane zaten var')
@@ -198,6 +284,43 @@ export async function setDepartmentActive(input: Record<string, unknown>) {
   }
 }
 
+export async function deleteDepartment(input: Record<string, unknown>) {
+  const id = requireId(input.id, 'Tıbbi birim')
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const department = await tx.department.findUnique({
+        where: { id },
+        select: {
+          panelUsers: {
+            where: { role: 'DOCTOR' },
+            select: { id: true },
+          },
+        },
+      })
+
+      if (!department) {
+        throw new AdminMutationError('Tıbbi birim bulunamadı', 404)
+      }
+
+      const doctorIds = department.panelUsers.map((doctor) => doctor.id)
+
+      await deleteDoctorPanelUsers(tx, doctorIds)
+      await tx.panelUser.updateMany({
+        where: { departmentId: id },
+        data: { departmentId: null },
+      })
+
+      return await tx.department.delete({
+        where: { id },
+        select: { id: true },
+      })
+    })
+  } catch (error) {
+    mapPrismaError(error, 'Bu tıbbi birim zaten var')
+  }
+}
+
 export async function createDoctor(input: Record<string, unknown>) {
   const departmentId = requireId(input.departmentId, 'Tıbbi birim')
   const title = requireText(input.title, 'Unvan', 2, 50)
@@ -242,6 +365,55 @@ export async function createDoctor(input: Record<string, unknown>) {
   }
 }
 
+export async function createSecretary(input: Record<string, unknown>) {
+  const username = requireUsername(input.username)
+  const password = requirePassword(input.password)
+  const hashedPassword = await bcrypt.hash(password, 10)
+
+  try {
+    return await prisma.panelUser.create({
+      data: {
+        name: username,
+        password: hashedPassword,
+        role: 'SECRETARY',
+        username,
+      },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        name: true,
+        isActive: true,
+      },
+    })
+  } catch (error) {
+    mapPrismaError(error, 'Bu sekreter kullanıcısı zaten var')
+  }
+}
+
+export async function deleteDoctor(input: Record<string, unknown>) {
+  const id = requireId(input.id, 'Doktor')
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const doctor = await tx.panelUser.findFirst({
+        where: { id, role: 'DOCTOR' },
+        select: { id: true },
+      })
+
+      if (!doctor) {
+        throw new AdminMutationError('Doktor bulunamadı', 404)
+      }
+
+      await deleteDoctorPanelUsers(tx, [id])
+
+      return { id }
+    })
+  } catch (error) {
+    mapPrismaError(error, 'Bu doktor zaten var')
+  }
+}
+
 export async function setDoctorActive(input: Record<string, unknown>) {
   const id = requireId(input.id, 'Doktor')
   const isActive = input.isActive === true || input.isActive === 'true'
@@ -263,5 +435,58 @@ export async function setDoctorActive(input: Record<string, unknown>) {
     })
   } catch (error) {
     mapPrismaError(error, 'Bu doktor zaten var')
+  }
+}
+
+export async function deleteSecretary(input: Record<string, unknown>) {
+  const id = requireId(input.id, 'Sekreter')
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const secretary = await tx.panelUser.findFirst({
+        where: { id, role: 'SECRETARY' },
+        select: { id: true },
+      })
+
+      if (!secretary) {
+        throw new AdminMutationError('Sekreter bulunamadı', 404)
+      }
+
+      await tx.appointment.updateMany({
+        where: { confirmedById: id },
+        data: { confirmedById: null },
+      })
+
+      return await tx.panelUser.delete({
+        where: { id },
+        select: { id: true },
+      })
+    })
+  } catch (error) {
+    mapPrismaError(error, 'Bu sekreter zaten var')
+  }
+}
+
+export async function setSecretaryActive(input: Record<string, unknown>) {
+  const id = requireId(input.id, 'Sekreter')
+  const isActive = input.isActive === true || input.isActive === 'true'
+
+  const secretary = await prisma.panelUser.findFirst({
+    where: { id, role: 'SECRETARY' },
+    select: { id: true },
+  })
+
+  if (!secretary) {
+    throw new AdminMutationError('Sekreter bulunamadı', 404)
+  }
+
+  try {
+    return await prisma.panelUser.update({
+      where: { id },
+      data: { isActive },
+      select: { id: true, isActive: true },
+    })
+  } catch (error) {
+    mapPrismaError(error, 'Bu sekreter zaten var')
   }
 }

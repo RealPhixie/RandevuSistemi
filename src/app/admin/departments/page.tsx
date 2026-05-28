@@ -1,9 +1,11 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
+import { ConfirmSubmitButton } from '@/components/admin/ConfirmSubmitButton'
 import { DepartmentIcon } from '@/components/DepartmentIcon'
 import {
   createDepartment,
+  deleteDepartment,
   setDepartmentActive,
 } from '@/lib/admin-management'
 import {
@@ -53,6 +55,21 @@ async function updateDepartmentStatusAction(formData: FormData) {
     await setDepartmentActive(Object.fromEntries(formData))
   } catch {
     redirect('/admin/departments?error=status')
+  }
+
+  revalidatePath('/admin/departments')
+  redirect('/admin/departments')
+}
+
+async function deleteDepartmentAction(formData: FormData) {
+  'use server'
+
+  await requireAdmin()
+
+  try {
+    await deleteDepartment(Object.fromEntries(formData))
+  } catch {
+    redirect('/admin/departments?error=delete')
   }
 
   revalidatePath('/admin/departments')
@@ -148,14 +165,14 @@ export default async function AdminDepartmentsPage({
 
       <section className="rounded-3xl border border-[#cbd8ea] bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] border-collapse text-left">
+          <table className="w-full min-w-[920px] border-collapse text-left">
             <thead>
               <tr className="border-b border-[#d7e0ef] text-xs font-bold uppercase text-[#70809a]">
                 <th className="px-5 py-4">Birim</th>
                 <th className="px-5 py-4">Hastane</th>
                 <th className="px-5 py-4">Doktor</th>
                 <th className="px-5 py-4">Durum</th>
-                <th className="px-5 py-4">İşlem</th>
+                <th className="px-5 py-4 text-center">İşlem</th>
               </tr>
             </thead>
             <tbody>
@@ -195,20 +212,32 @@ export default async function AdminDepartmentsPage({
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <form action={updateDepartmentStatusAction}>
-                      <input type="hidden" name="id" value={department.id} />
-                      <input
-                        type="hidden"
-                        name="isActive"
-                        value={String(!department.isActive)}
-                      />
-                      <button
-                        type="submit"
-                        className="h-10 rounded-xl border border-[#cbd8ea] px-4 text-sm font-bold text-[#30476f] transition hover:bg-[#f5f8fe]"
-                      >
-                        {department.isActive ? 'Pasifleştir' : 'Aktifleştir'}
-                      </button>
-                    </form>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <form action={updateDepartmentStatusAction}>
+                        <input type="hidden" name="id" value={department.id} />
+                        <input
+                          type="hidden"
+                          name="isActive"
+                          value={String(!department.isActive)}
+                        />
+                        <button
+                          type="submit"
+                          className="h-10 rounded-xl border border-[#cbd8ea] px-4 text-sm font-bold text-[#30476f] transition hover:bg-[#f5f8fe]"
+                        >
+                          {department.isActive ? 'Pasifleştir' : 'Aktifleştir'}
+                        </button>
+                      </form>
+
+                      <form action={deleteDepartmentAction}>
+                        <input type="hidden" name="id" value={department.id} />
+                        <ConfirmSubmitButton
+                          message="Bu tıbbi birimi silmek istediğinize emin misiniz?"
+                          className="h-10 rounded-xl border border-red-200 px-4 text-sm font-bold text-red-700 transition hover:bg-red-50"
+                        >
+                          Sil
+                        </ConfirmSubmitButton>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}
