@@ -140,6 +140,10 @@ export default async function AdminAppointmentsPage({
 
   const where: Prisma.AppointmentWhereInput =
     conditions.length > 0 ? { AND: conditions } : {}
+  const orderBy: Prisma.AppointmentOrderByWithRelationInput[] =
+    user.role === 'SECRETARY'
+      ? [{ timeSlot: { date: 'asc' } }, { timeSlot: { startTime: 'asc' } }]
+      : [{ timeSlot: { date: 'desc' } }, { timeSlot: { startTime: 'desc' } }]
 
   await markExpiredScheduledAppointmentsNoShow()
 
@@ -161,7 +165,7 @@ export default async function AdminAppointmentsPage({
         },
       },
     },
-    orderBy: [{ timeSlot: { date: 'asc' } }, { timeSlot: { startTime: 'asc' } }],
+    orderBy,
   })
 
   return (

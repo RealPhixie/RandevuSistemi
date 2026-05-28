@@ -63,6 +63,17 @@ function isCurrentAppointment(record: AppointmentRecord) {
   )
 }
 
+function compareAppointmentTime(
+  first: AppointmentRecord,
+  second: AppointmentRecord
+) {
+  const dateDelta = first.timeSlot.date.getTime() - second.timeSlot.date.getTime()
+
+  if (dateDelta !== 0) return dateDelta
+
+  return first.timeSlot.startTime.localeCompare(second.timeSlot.startTime)
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const phone = normalizePhone(searchParams.get('phone'))
@@ -119,22 +130,29 @@ export async function GET(request: Request) {
           },
         },
       },
-      orderBy: [{ timeSlot: { date: 'desc' } }, { timeSlot: { startTime: 'desc' } }],
     })
 
-    const current: PatientAppointmentOption[] = []
-    const past: PatientAppointmentOption[] = []
+    const current: AppointmentRecord[] = []
+    const past: AppointmentRecord[] = []
 
     appointments.forEach((appointment) => {
       if (isCurrentAppointment(appointment)) {
-        current.push(mapAppointment(appointment))
+        current.push(appointment)
         return
       }
 
-      past.push(mapAppointment(appointment))
+      past.push(appointment)
     })
 
-    return Response.json({ success: true, data: { current, past } })
+    return Response.json({
+      success: true,
+      data: {
+        current: current.sort(compareAppointmentTime).map(mapAppointment),
+        past: past
+          .sort((first, second) => compareAppointmentTime(second, first))
+          .map(mapAppointment),
+      },
+    })
   } catch {
     return Response.json(
       { success: false, error: 'Randevular yüklenemedi' },
