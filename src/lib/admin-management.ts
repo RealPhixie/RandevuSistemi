@@ -467,6 +467,57 @@ export async function deleteSecretary(input: Record<string, unknown>) {
   }
 }
 
+export async function deletePatient(input: Record<string, unknown>) {
+  const id = requireId(input.id, 'Hasta')
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const patient = await tx.patient.findUnique({
+        where: { id },
+        select: {
+          appointments: { select: { timeSlotId: true } },
+        },
+      })
+
+      if (!patient) {
+        throw new AdminMutationError('Hasta bulunamadı', 404)
+      }
+
+      const timeSlotIds = [
+        ...new Set(
+          patient.appointments.map((appointment) => appointment.timeSlotId)
+        ),
+      ]
+
+      await tx.doctorNote.deleteMany({
+        where: { patientId: id },
+      })
+      await tx.appointment.deleteMany({
+        where: { patientId: id },
+      })
+
+      if (timeSlotIds.length > 0) {
+        await tx.timeSlot.updateMany({
+          where: {
+            id: { in: timeSlotIds },
+            appointments: {
+              none: { status: { in: ['SCHEDULED', 'COMPLETED', 'NO_SHOW'] } },
+            },
+          },
+          data: { isBooked: false },
+        })
+      }
+
+      return await tx.patient.delete({
+        where: { id },
+        select: { id: true },
+      })
+    })
+  } catch (error) {
+    mapPrismaError(error, 'Bu hasta zaten var')
+  }
+}
+
 export async function setSecretaryActive(input: Record<string, unknown>) {
   const id = requireId(input.id, 'Sekreter')
   const isActive = input.isActive === true || input.isActive === 'true'

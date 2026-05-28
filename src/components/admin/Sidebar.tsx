@@ -13,6 +13,7 @@ const NAV_LINKS: Record<PanelUserRole, { href: string; label: string }[]> = {
   ADMIN: [
     { href: '/admin', label: 'Dashboard' },
     { href: '/admin/appointments', label: 'Randevular' },
+    { href: '/admin/patients', label: 'Hastalar' },
     { href: '/admin/hospitals', label: 'Hastaneler' },
     { href: '/admin/departments', label: 'Birimler' },
     { href: '/admin/doctors', label: 'Doktorlar' },
