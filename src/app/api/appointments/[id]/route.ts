@@ -59,7 +59,7 @@ function canConfirmAppointment(status: AppointmentStatus, date: Date) {
 
 function hasPatientCancellationCredentials(body: AppointmentPatchRequestBody) {
   return (
-    typeof body.phone === 'string' ||
+    typeof body.phone === 'string' &&
     typeof body.phoneVerificationId === 'string'
   )
 }
@@ -107,6 +107,19 @@ async function updateAppointmentStatus(
   })
 }
 
+async function findAppointmentForPatch(id: string) {
+  return prisma.appointment.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      status: true,
+      isConfirmed: true,
+      patient: { select: { phone: true } },
+      timeSlot: { select: { date: true, startTime: true } },
+    },
+  })
+}
+
 export async function PATCH(
   request: Request,
   context: RouteContext<'/api/appointments/[id]'>
@@ -132,25 +145,6 @@ export async function PATCH(
     )
   }
 
-  await markExpiredScheduledAppointmentsNoShow()
-
-  const appointment = await prisma.appointment.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      status: true,
-      patient: { select: { phone: true } },
-      timeSlot: { select: { date: true, startTime: true } },
-    },
-  })
-
-  if (!appointment) {
-    return Response.json(
-      { success: false, error: 'Randevu bulunamadı' },
-      { status: 404 }
-    )
-  }
-
   if (action === 'CONFIRM') {
     const session = await auth()
 
@@ -167,6 +161,24 @@ export async function PATCH(
       return Response.json(
         { success: false, error: 'Forbidden' },
         { status: 403 }
+      )
+    }
+
+    await markExpiredScheduledAppointmentsNoShow()
+
+    const appointment = await findAppointmentForPatch(id)
+
+    if (!appointment) {
+      return Response.json(
+        { success: false, error: 'Randevu bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    if (appointment.isConfirmed) {
+      return Response.json(
+        { success: false, error: 'Randevu zaten onaylandı.' },
+        { status: 409 }
       )
     }
 
@@ -220,10 +232,30 @@ export async function PATCH(
       )
     }
 
+    let appointment = await findAppointmentForPatch(id)
+
+    if (!appointment) {
+      return Response.json(
+        { success: false, error: 'Randevu bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     if (appointment.patient.phone !== phone) {
       return Response.json(
         { success: false, error: 'Bu randevu bu telefona ait değil' },
         { status: 403 }
+      )
+    }
+
+    await markExpiredScheduledAppointmentsNoShow()
+
+    appointment = await findAppointmentForPatch(id)
+
+    if (!appointment) {
+      return Response.json(
+        { success: false, error: 'Randevu bulunamadı' },
+        { status: 404 }
       )
     }
 
@@ -251,6 +283,17 @@ export async function PATCH(
     return Response.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 }
+    )
+  }
+
+  await markExpiredScheduledAppointmentsNoShow()
+
+  const appointment = await findAppointmentForPatch(id)
+
+  if (!appointment) {
+    return Response.json(
+      { success: false, error: 'Randevu bulunamadı' },
+      { status: 404 }
     )
   }
 
