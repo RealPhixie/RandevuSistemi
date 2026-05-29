@@ -316,7 +316,10 @@ export function AppointmentTable({
                               type="button"
                               title={action.label}
                               aria-label={`${appointment.patientName} - ${action.label}`}
-                              disabled={updatingId === appointment.id}
+                              disabled={
+                                updatingId === appointment.id ||
+                                appointment.status !== 'SCHEDULED'
+                              }
                               onClick={() =>
                                 void updateStatus(
                                   appointment.id,
