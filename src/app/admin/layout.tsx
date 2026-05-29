@@ -15,13 +15,13 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   const name = user.name ?? user.username
 
   return (
-    <div className="min-h-screen bg-[#eaf1fb] lg:flex">
+    <div className="min-h-screen bg-[#eaf1fb] lg:flex lg:h-screen lg:overflow-hidden">
       <Sidebar
         name={name}
         role={user.role}
         username={user.username}
       />
-      <main className="min-w-0 flex-1 px-5 py-6 sm:px-8 lg:px-10">
+      <main className="min-w-0 flex-1 px-5 py-6 sm:px-8 lg:h-screen lg:min-h-0 lg:overflow-y-auto lg:px-10">
         {children}
       </main>
     </div>

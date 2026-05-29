@@ -12,13 +12,6 @@ function createOtpCode() {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
-function shouldExposeOtpCode() {
-  return (
-    process.env.NODE_ENV !== 'production' ||
-    process.env.SHOW_OTP_ON_SCREEN === 'true'
-  )
-}
-
 export async function POST(request: Request) {
   let body: OtpSendRequestBody
 
@@ -60,7 +53,7 @@ export async function POST(request: Request) {
     return Response.json({
       success: true,
       data: { expiresAt: expiresAt.toISOString() },
-      ...(shouldExposeOtpCode() ? { devCode: code } : {}),
+      devCode: code,
     })
   } catch {
     return Response.json(

@@ -32,7 +32,7 @@ export function Sidebar({ name, role, username }: SidebarProps) {
   }
 
   return (
-    <aside className="flex min-h-screen w-full flex-col border-r border-[#d7e0ef] bg-white px-5 py-6 shadow-sm lg:w-72">
+    <aside className="flex min-h-screen w-full flex-col border-r border-[#d7e0ef] bg-white px-5 py-6 shadow-sm lg:h-screen lg:min-h-0 lg:w-72 lg:shrink-0">
       <div>
         <p className="text-xs font-bold uppercase tracking-wide text-red-600">
           Yönetim
@@ -42,7 +42,7 @@ export function Sidebar({ name, role, username }: SidebarProps) {
         </h1>
       </div>
 
-      <nav className="mt-8 grid gap-2">
+      <nav className="mt-8 grid min-h-0 flex-1 content-start gap-2 overflow-y-auto pr-1">
         {NAV_LINKS[role].map((link) => (
           <Link
             key={link.href}
