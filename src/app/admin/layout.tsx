@@ -1,4 +1,5 @@
 import { Sidebar } from '@/components/admin/Sidebar'
+import { signOut } from '@/lib/auth'
 import { requireRole } from '@/lib/require-role'
 
 interface AdminLayoutProps {
@@ -13,12 +14,18 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   const name = user.name ?? user.username
+  async function signOutAction() {
+    'use server'
+
+    await signOut({ redirectTo: '/admin/login' })
+  }
 
   return (
     <div className="min-h-screen bg-[#eaf1fb] lg:flex lg:h-screen lg:overflow-hidden">
       <Sidebar
         name={name}
         role={user.role}
+        signOutAction={signOutAction}
         username={user.username}
       />
       <main className="min-w-0 flex-1 px-5 py-6 sm:px-8 lg:h-screen lg:min-h-0 lg:overflow-y-auto lg:px-10">
